@@ -49,4 +49,4 @@ DISTCLEANFILES = \
 	clutter-md2-version.h
 
 EXTRA_DIST = \
-	clutter-version.h.in
+	clutter-md2-version.h.in
