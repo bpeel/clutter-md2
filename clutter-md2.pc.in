@@ -1,0 +1,13 @@
+prefix=@prefix@
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+apiversion=@CLUTTER_MD2_API_VERSION@
+requires=@CLUTTER_MD2_REQUIRES@
+
+Name: Clutter-MD2
+Description: MD2 model renderer for Clutter
+Version: @VERSION@
+Libs: -L${libdir} -lclutter-md2-${apiversion}
+Cflags: -I${includedir}/clutter-md2-${apiversion}
+Requires: ${requires}
