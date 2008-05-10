@@ -100,6 +100,7 @@ AC_SUBST(CLUTTER_MD2_LIBS)
 
 AC_CONFIG_FILES([
         Makefile
+	tests/Makefile
         clutter-md2/Makefile
         clutter-md2/clutter-md2-version.h
         clutter-md2.pc

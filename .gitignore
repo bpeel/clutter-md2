@@ -3,6 +3,7 @@
 *.la
 *.o
 *.lo
+.libs
 .deps
 
 /config.guess
@@ -22,9 +23,12 @@
 /Makefile.in
 /aclocal.m4
 /autom4te.cache
-/clutter-md2.pc
+/clutter-md2*.pc
 
 /clutter-md2/clutter-md2-version.h
 /clutter-md2/Makefile.in
 /clutter-md2/Makefile
 
+/tests/Makefile.in
+/tests/Makefile
+/tests/test-display

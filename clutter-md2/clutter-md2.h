@@ -26,4 +26,44 @@
 #ifndef __CLUTTER_MD2_H__
 #define __CLUTTER_MD2_H__
 
+#include <glib-object.h>
+#include <clutter/clutter-actor.h>
+
+G_BEGIN_DECLS
+
+#define CLUTTER_TYPE_MD2 (clutter_md2_get_type ())
+
+#define CLUTTER_MD2(obj)						\
+  (G_TYPE_CHECK_INSTANCE_CAST ((obj), CLUTTER_TYPE_MD2, ClutterMD2))
+#define CLUTTER_MD2_CLASS(klass)					\
+  (G_TYPE_CHECK_CLASS_CAST ((klass), CLUTTER_TYPE_MD2, ClutterMD2Class))
+#define CLUTTER_IS_MD2(obj)					        \
+  (G_TYPE_CHECK_INSTANCE_TYPE ((obj), CLUTTER_TYPE_MD2))
+#define CLUTTER_IS_MD2_CLASS(klass)			                \
+  (G_TYPE_CHECK_CLASS_TYPE ((klass), CLUTTER_TYPE_MD2))
+#define CLUTTER_MD2_GET_CLASS(obj)					\
+  (G_TYPE_INSTANCE_GET_CLASS ((obj), CLUTTER_TYPE_MD2, ClutterMD2Class))
+
+typedef struct _ClutterMD2 ClutterMD2;
+typedef struct _ClutterMD2Private  ClutterMD2Private;
+typedef struct _ClutterMD2Class ClutterMD2Class;
+
+struct _ClutterMD2
+{
+  ClutterActor parent_instance;
+
+  ClutterMD2Private *priv;
+};
+
+struct _ClutterMD2Class
+{
+  ClutterActorClass parent_class;
+};
+
+GType clutter_md2_get_type (void) G_GNUC_CONST;
+
+ClutterActor *clutter_md2_new (void);
+
+G_END_DECLS
+
 #endif /* __CLUTTER_MD2_H__ */

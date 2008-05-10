@@ -1,4 +1,4 @@
-SUBDIRS = clutter-md2
+SUBDIRS = clutter-md2 tests
 
 pcfiles = \
 	clutter-md2-$(CLUTTER_MD2_API_VERSION).pc
