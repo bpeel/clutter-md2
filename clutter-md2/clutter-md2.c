@@ -72,7 +72,7 @@ struct _ClutterMD2Frame
   float scale[3];
   float translate[3];
   char name[CLUTTER_MD2_MAX_FRAME_NAME_LEN + 1];
-  gchar vertices[1];
+  guchar vertices[1];
 };
 
 enum
@@ -142,7 +142,7 @@ clutter_md2_paint (ClutterActor *self)
   ClutterMD2Private *priv = md2->priv;
   ClutterGeometry geom;
   ClutterMD2Frame *frame;
-  gchar *vertices;
+  guchar *vertices;
   guchar *gl_command;
   
   if (priv->gl_commands == NULL || priv->frames == NULL
@@ -179,7 +179,7 @@ clutter_md2_paint (ClutterActor *self)
 	{
 	  float s, t;
 	  int vertex_num;
-	  gchar *vertex;
+	  guchar *vertex;
 
 	  s = *(float *) gl_command;
 	  gl_command += sizeof (float);
