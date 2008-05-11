@@ -44,6 +44,14 @@ G_BEGIN_DECLS
 #define CLUTTER_MD2_GET_CLASS(obj)					\
   (G_TYPE_INSTANCE_GET_CLASS ((obj), CLUTTER_TYPE_MD2, ClutterMD2Class))
 
+typedef enum {
+  CLUTTER_MD2_ERROR_INVALID_FILE,
+  CLUTTER_MD2_ERROR_BAD_VERSION
+} ClutterMD2Error;
+
+#define CLUTTER_MD2_ERROR (clutter_md2_error_quark ())
+GQuark clutter_md2_error_quark (void);
+
 typedef struct _ClutterMD2 ClutterMD2;
 typedef struct _ClutterMD2Private  ClutterMD2Private;
 typedef struct _ClutterMD2Class ClutterMD2Class;
@@ -64,6 +72,11 @@ GType clutter_md2_get_type (void) G_GNUC_CONST;
 
 ClutterActor *clutter_md2_new (void);
 
+gboolean clutter_md2_load (ClutterMD2   *md2,
+			   const gchar  *filename,
+			   GError      **error);
+
 G_END_DECLS
+
 
 #endif /* __CLUTTER_MD2_H__ */

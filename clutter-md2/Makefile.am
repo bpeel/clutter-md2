@@ -22,16 +22,21 @@ source_h =					          \
 	$(srcdir)/clutter-md2.h                           \
 	$(top_builddir)/clutter-md2/clutter-md2-version.h
 
+source_h_priv =                         \
+	clutter-md2-norms.h
+
 # please, keep this sorted alphabetically
 source_c =                              \
-	clutter-md2.c
+	clutter-md2.c                   \
+	clutter-md2-norms.c
 
 libclutter_md2_@CLUTTER_MD2_API_VERSION@_la_LIBADD = \
   $(CLUTTER_MD2_LIBS)
 
 libclutter_md2_@CLUTTER_MD2_API_VERSION@_la_SOURCES = \
 	$(source_c) \
-	$(source_h)
+	$(source_h) \
+	$(source_h_priv)
 
 libclutter_md2_@CLUTTER_MD2_API_VERSION@_la_LDFLAGS = \
 	$(LDADD)
