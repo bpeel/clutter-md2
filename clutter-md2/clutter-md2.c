@@ -29,6 +29,7 @@
 
 #include <glib-object.h>
 #include <glib/gstdio.h>
+#include <gdk-pixbuf/gdk-pixbuf.h>
 #include <clutter/clutter-actor.h>
 #include <GL/gl.h>
 #include <errno.h>
@@ -56,6 +57,7 @@ typedef struct _ClutterMD2Frame ClutterMD2Frame;
 #define CLUTTER_MD2_MAX_MEM_SIZE (4 * 1024 * 1024)
 
 #define CLUTTER_MD2_MAX_FRAME_NAME_LEN 15
+#define CLUTTER_MD2_MAX_SKIN_NAME_LEN  63
 
 struct _ClutterMD2Private
 {
@@ -63,8 +65,11 @@ struct _ClutterMD2Private
 
   int num_frames;
   int current_frame;
-
   ClutterMD2Frame **frames;
+
+  int num_skins;
+  int current_skin;
+  GLuint *textures;
 };
 
 struct _ClutterMD2Frame
@@ -124,9 +129,12 @@ clutter_md2_init (ClutterMD2 *self)
   self->priv = priv = CLUTTER_MD2_GET_PRIVATE (self);
 
   priv->gl_commands = NULL;
-  priv->frames = NULL;
   priv->num_frames = 0;
   priv->current_frame = 0;
+  priv->frames = NULL;
+  priv->num_skins = 0;
+  priv->current_skin = 0;
+  priv->textures = NULL;
 }
 
 ClutterActor *
@@ -145,8 +153,11 @@ clutter_md2_paint (ClutterActor *self)
   guchar *vertices;
   guchar *gl_command;
   
-  if (priv->gl_commands == NULL || priv->frames == NULL
-      || priv->current_frame >= priv->num_frames)
+  if (priv->gl_commands == NULL
+      || priv->frames == NULL
+      || priv->textures == NULL
+      || priv->current_frame >= priv->num_frames
+      || priv->current_skin >= priv->num_skins)
     return;
 
   frame = priv->frames[priv->current_frame];
@@ -155,11 +166,14 @@ clutter_md2_paint (ClutterActor *self)
 
   clutter_actor_get_geometry (self, &geom);
 
-  glPushAttrib (GL_ENABLE_BIT | GL_CURRENT_BIT | GL_POLYGON_BIT);
-  glDisable (GL_TEXTURE_2D);
+  glPushAttrib (GL_ENABLE_BIT | GL_CURRENT_BIT
+		| GL_POLYGON_BIT | GL_TEXTURE_BIT);
+  glEnable (GL_DEPTH_TEST);
+  glDepthFunc (GL_LEQUAL);
+  glBindTexture (GL_TEXTURE_2D, priv->textures[priv->current_skin]);
+  glEnable (GL_TEXTURE_2D);
   glDisable (GL_TEXTURE_RECTANGLE_ARB);
-  glColor3f (0.0f, 0.0f, 0.0f);
-  glPolygonMode (GL_FRONT_AND_BACK, GL_LINE);
+  glTexEnvi (GL_TEXTURE_2D, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 
   while (*(gint32 *) gl_command)
     {
@@ -259,6 +273,9 @@ clutter_md2_check_malloc (const gchar *display_name,
 			  size_t size,
 			  GError **error)
 {
+  if (size == 0)
+    size = 1;
+
   if (size > CLUTTER_MD2_MAX_MEM_SIZE)
     {
       g_set_error (error,
@@ -442,6 +459,95 @@ clutter_md2_load_frames (ClutterMD2 *md2, FILE *file,
   return TRUE;
 }
 
+static gboolean
+clutter_md2_load_skins (ClutterMD2 *md2, FILE *file,
+			const gchar *file_name,
+			const gchar *display_name,
+			guint32 num_skins,
+			guint32 file_offset,
+			GError **error)
+{
+  ClutterMD2Private *priv = md2->priv;
+  int i;
+
+  if (priv->textures)
+    {
+      glDeleteTextures (priv->num_skins, priv->textures);
+      g_free (priv->textures);
+    }
+
+  priv->num_skins = num_skins;
+
+  if ((priv->textures = clutter_md2_check_malloc (display_name,
+						  sizeof (GLuint)
+						  * num_skins, error)) == NULL)
+    return FALSE;
+
+  memset (priv->textures, 0, sizeof (GLuint) * num_skins);
+  glGenTextures (priv->num_skins, priv->textures);
+
+  if (!clutter_md2_seek (file, file_offset, display_name, error))
+    return FALSE;
+
+  for (i = 0; i < num_skins; i++)
+    {
+      GdkPixbuf *pixbuf;
+      gchar skin_name[CLUTTER_MD2_MAX_SKIN_NAME_LEN + 1];
+      gchar *dir_name, *full_skin_path;
+      int bpp, rowstride, alignment = 1;
+
+      if (!clutter_md2_read (skin_name, CLUTTER_MD2_MAX_SKIN_NAME_LEN + 1,
+			     file, display_name, error))
+	return FALSE;
+
+      skin_name[CLUTTER_MD2_MAX_SKIN_NAME_LEN] = '\0';
+
+      /* Assume the file name of the skin is relative to the directory
+	 containing the MD2 file */
+      dir_name = g_path_get_dirname (file_name);
+      full_skin_path = g_build_filename (dir_name, skin_name, NULL);
+      g_free (dir_name);
+
+      pixbuf = gdk_pixbuf_new_from_file (full_skin_path, error);
+      
+      g_free (full_skin_path);
+
+      if (pixbuf == NULL)
+	return FALSE;
+
+      bpp = gdk_pixbuf_get_has_alpha (pixbuf) ? 4 : 3;
+      rowstride = gdk_pixbuf_get_rowstride (pixbuf);
+      while ((rowstride & 1) == 0 && alignment < 8)
+	{
+	  rowstride >>= 1;
+	  alignment <<= 1;
+	}
+      
+      glBindTexture (GL_TEXTURE_2D, priv->textures[i]);
+      glPixelStorei (GL_UNPACK_ROW_LENGTH,
+		     gdk_pixbuf_get_rowstride (pixbuf) / bpp);
+      glPixelStorei (GL_UNPACK_ALIGNMENT, alignment);
+
+      glTexParameterf (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+      glTexParameterf (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+      glTexParameterf (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+      glTexParameterf (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+      glTexImage2D (GL_TEXTURE_2D, 0,
+		    gdk_pixbuf_get_has_alpha (pixbuf) ? GL_RGBA : GL_RGB,
+		    gdk_pixbuf_get_width (pixbuf),
+		    gdk_pixbuf_get_height (pixbuf),
+		    0,
+		    gdk_pixbuf_get_has_alpha (pixbuf) ? GL_RGBA : GL_RGB,
+		    GL_UNSIGNED_BYTE,
+		    gdk_pixbuf_get_pixels (pixbuf));
+
+      g_object_unref (pixbuf);
+    }
+
+  return TRUE;
+}
+
 static void
 clutter_md2_free_data (ClutterMD2 *md2)
 {
@@ -468,6 +574,18 @@ clutter_md2_free_data (ClutterMD2 *md2)
 
   priv->current_frame = 0;
   priv->num_frames = 0;
+
+  if (priv->textures)
+    {
+      glDeleteTextures (priv->num_skins, priv->textures);
+
+      g_free (priv->textures);
+
+      priv->textures = NULL;
+    }
+
+  priv->current_skin = 0;
+  priv->num_skins = 0;
 }
 
 gboolean
@@ -476,6 +594,7 @@ clutter_md2_load (ClutterMD2 *md2, const gchar *filename, GError **error)
   gboolean ret = TRUE;
   FILE *file;
   gchar *display_name;
+  ClutterMD2Private *priv = md2->priv;
 
   g_return_val_if_fail (CLUTTER_IS_MD2 (md2), FALSE);
   g_return_val_if_fail (error == NULL || *error == NULL, FALSE);
@@ -546,6 +665,12 @@ clutter_md2_load (ClutterMD2 *md2, const gchar *filename, GError **error)
 		    header[CLUTTER_MD2_HEADER_OFFSET_FRAMES],
 		    error))
 	    ret = FALSE;
+	  else if (!clutter_md2_load_skins
+		   (md2, file, filename, display_name,
+		    header[CLUTTER_MD2_HEADER_NUM_SKINS],
+		    header[CLUTTER_MD2_HEADER_OFFSET_SKINS],
+		    error))
+	    ret = FALSE;
 	}
 
       fclose (file);
@@ -557,6 +682,13 @@ clutter_md2_load (ClutterMD2 *md2, const gchar *filename, GError **error)
      to draw it */
   if (!ret)
     clutter_md2_free_data (md2);
+  else
+    {
+      if (priv->current_frame >= priv->num_frames)
+	priv->current_frame = 0;
+      if (priv->current_skin >= priv->num_skins)
+	priv->current_skin = 0;
+    }
 
   return ret;
 }
