@@ -32,7 +32,7 @@ G_BEGIN_DECLS
 
 #define CLUTTER_MD2_NORMS_COUNT 162
 
-extern float _clutter_md2_norms[CLUTTER_MD2_NORMS_COUNT * 3];
+extern const float _clutter_md2_norms[CLUTTER_MD2_NORMS_COUNT * 3];
 
 G_END_DECLS
 

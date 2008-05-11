@@ -29,7 +29,7 @@
 
 #include "clutter-md2-norms.h"
 
-float _clutter_md2_norms[CLUTTER_MD2_NORMS_COUNT * 3] =
+const float _clutter_md2_norms[CLUTTER_MD2_NORMS_COUNT * 3] =
   {
     -0.525731f, 0.000000f, 0.850651f,
     -0.442863f, 0.238856f, 0.864188f,
