@@ -22,9 +22,8 @@ main (int argc, char **argv)
   stage = clutter_stage_get_default ();
 
   md2 = clutter_md2_new ();
-  clutter_actor_set_size (md2, 100, 100);
-  clutter_actor_set_position (md2, clutter_actor_get_width (stage) / 2,
-			      clutter_actor_get_height (stage) / 2);
+  clutter_actor_set_size (md2, clutter_actor_get_width (stage),
+			  clutter_actor_get_height (stage));
 
   if (!clutter_md2_load (CLUTTER_MD2 (md2), argv[1], &error))
     {
@@ -40,6 +39,10 @@ main (int argc, char **argv)
   
   b = clutter_behaviour_rotate_new (alpha, CLUTTER_Y_AXIS,
 				    CLUTTER_ROTATE_CW, 0, 360);
+  clutter_behaviour_rotate_set_center (CLUTTER_BEHAVIOUR_ROTATE (b),
+				       clutter_actor_get_width (md2) / 2,
+				       clutter_actor_get_height (md2) / 2,
+				       0);
   clutter_behaviour_apply (b, md2);
 
   clutter_container_add (CLUTTER_CONTAINER (stage), md2, NULL);

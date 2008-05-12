@@ -70,6 +70,11 @@ struct _ClutterMD2Private
   int num_skins;
   int current_skin;
   GLuint *textures;
+
+  /* Maximum extents of all frames */
+  float left, right;
+  float top, bottom;
+  float back, front;
 };
 
 struct _ClutterMD2Frame
@@ -77,6 +82,12 @@ struct _ClutterMD2Frame
   float scale[3];
   float translate[3];
   char name[CLUTTER_MD2_MAX_FRAME_NAME_LEN + 1];
+
+  /* Extents of the model in this frame */
+  float left, right;
+  float top, bottom;
+  float back, front;
+
   guchar vertices[1];
 };
 
@@ -152,19 +163,23 @@ clutter_md2_paint (ClutterActor *self)
   ClutterMD2Frame *frame;
   guchar *vertices;
   guchar *gl_command;
+  float scale;
   
+  clutter_actor_get_geometry (self, &geom);
+
   if (priv->gl_commands == NULL
       || priv->frames == NULL
       || priv->textures == NULL
       || priv->current_frame >= priv->num_frames
-      || priv->current_skin >= priv->num_skins)
+      || priv->current_skin >= priv->num_skins
+      || geom.width == 0
+      || geom.height == 0
+      || priv->top == priv->bottom)
     return;
 
   frame = priv->frames[priv->current_frame];
   vertices = frame->vertices;
   gl_command = priv->gl_commands;
-
-  clutter_actor_get_geometry (self, &geom);
 
   glPushAttrib (GL_ENABLE_BIT | GL_CURRENT_BIT
 		| GL_POLYGON_BIT | GL_TEXTURE_BIT);
@@ -174,6 +189,27 @@ clutter_md2_paint (ClutterActor *self)
   glEnable (GL_TEXTURE_2D);
   glDisable (GL_TEXTURE_RECTANGLE_ARB);
   glTexEnvi (GL_TEXTURE_2D, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+
+  glPushMatrix ();
+
+  /* Scale so that the model fits in either the width or the height of
+     the actor, whichever makes the model bigger */
+  if ((priv->right - priv->left) / (priv->bottom - priv->top)
+      > geom.width / (float) geom.height)
+    /* Fit width */
+    scale = geom.width / (priv->right - priv->left);
+  else
+    /* Fit height */
+    scale = geom.height / (priv->bottom - priv->top);
+
+  /* Scale about the center of the model and move to the center of the actor */
+  glTranslatef (geom.width / 2,
+		geom.height / 2,
+		0);
+  glScalef (scale, scale, scale);
+  glTranslatef (-(priv->left + priv->right) / 2,
+		-(priv->top + priv->bottom) / 2,
+		-(priv->back + priv->front) / 2);
 
   while (*(gint32 *) gl_command)
     {
@@ -213,6 +249,8 @@ clutter_md2_paint (ClutterActor *self)
 
       glEnd ();
     }
+
+  glPopMatrix ();
 
   glPopAttrib ();
 }
@@ -412,11 +450,15 @@ clutter_md2_load_frames (ClutterMD2 *md2, FILE *file,
 
   if (!clutter_md2_seek (file, file_offset, display_name, error))
     return FALSE;
-  
+
+  priv->left = priv->top = priv->back = FLT_MAX;
+  priv->right = priv->bottom = priv->front = -FLT_MAX;
+
   for (i = 0; i < num_frames; i++)
     {
       guchar data[sizeof (float) * 6 + CLUTTER_MD2_MAX_FRAME_NAME_LEN + 1];
       guchar *p = data;
+      ClutterMD2Frame *frame;
 
       if (!clutter_md2_read (data, sizeof (data), file,
 			     display_name, error))
@@ -428,32 +470,71 @@ clutter_md2_load_frames (ClutterMD2 *md2, FILE *file,
 						       * 4, error)) == NULL)
 	return FALSE;
 
-      memcpy (priv->frames[i]->scale, p, sizeof (float) * 3);
-      p += sizeof (float) * 3;
-      memcpy (priv->frames[i]->translate, p, sizeof (float) * 3);
-      p += sizeof (float) * 3;
-      memcpy (priv->frames[i]->name, p, CLUTTER_MD2_MAX_FRAME_NAME_LEN + 1);
-      p += CLUTTER_MD2_MAX_FRAME_NAME_LEN + 1;
-      priv->frames[i]->name[CLUTTER_MD2_MAX_FRAME_NAME_LEN] = '\0';
+      frame = priv->frames[i];
 
-      if (!clutter_md2_read (priv->frames[i]->vertices, num_vertices * 4,
+      memcpy (frame->scale, p, sizeof (float) * 3);
+      p += sizeof (float) * 3;
+      memcpy (frame->translate, p, sizeof (float) * 3);
+      p += sizeof (float) * 3;
+      memcpy (frame->name, p, CLUTTER_MD2_MAX_FRAME_NAME_LEN + 1);
+      p += CLUTTER_MD2_MAX_FRAME_NAME_LEN + 1;
+      frame->name[CLUTTER_MD2_MAX_FRAME_NAME_LEN] = '\0';
+
+      if (!clutter_md2_read (frame->vertices, num_vertices * 4,
 			     file, display_name, error))
 	return FALSE;
 
-      /* Check all of the normal indices */
-      for (p = (guchar *) priv->frames[i]->vertices + num_vertices * 4;
-	   p > (guchar *) priv->frames[i]->vertices;
-	   p -= 4)
-	if (*(p - 1) >= CLUTTER_MD2_NORMS_COUNT)
-	  {
-	    g_set_error (error,
-			 CLUTTER_MD2_ERROR,
-			 CLUTTER_MD2_ERROR_INVALID_FILE,
-			 "'%s' is invalid",
-			 display_name);
+      frame->left = frame->top = frame->back = FLT_MAX;
+      frame->right = frame->bottom = frame->front = -FLT_MAX;
 
-	    return FALSE;
-	  }
+      /* Check all of the normal indices and calculate the extents */
+      for (p = frame->vertices + num_vertices * 4; p > frame->vertices;)
+	{
+	  float x, y, z;
+
+	  p -= 4;
+
+	  if (p[3] >= CLUTTER_MD2_NORMS_COUNT)
+	    {
+	      g_set_error (error,
+			   CLUTTER_MD2_ERROR,
+			   CLUTTER_MD2_ERROR_INVALID_FILE,
+			   "'%s' is invalid",
+			   display_name);
+
+	      return FALSE;
+	    }
+
+	  x = p[0] * frame->scale[0] + frame->translate[0];
+	  y = p[1] * frame->scale[1] + frame->translate[1];
+	  z = p[2] * frame->scale[2] + frame->translate[2];
+
+	  if (x < frame->left)
+	    frame->left = x;
+	  if (x > frame->right)
+	    frame->right = x;
+	  if (y < frame->top)
+	    frame->top = y;
+	  if (y > frame->bottom)
+	    frame->bottom = y;
+	  if (z < frame->back)
+	    frame->back = z;
+	  if (z > frame->front)
+	    frame->front = z;
+	}
+
+      if (frame->left < priv->left)
+	priv->left = frame->left;
+      if (frame->right > priv->right)
+	priv->right = frame->right;
+      if (frame->top < priv->top)
+	priv->top = frame->top;
+      if (frame->bottom > priv->bottom)
+	priv->bottom = frame->bottom;
+      if (frame->back < priv->back)
+	priv->back = frame->back;
+      if (frame->front > priv->front)
+	priv->front = frame->front;
     }
 
   return TRUE;
