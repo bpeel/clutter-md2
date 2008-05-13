@@ -184,11 +184,12 @@ clutter_md2_paint (ClutterActor *self)
   glPushAttrib (GL_ENABLE_BIT | GL_CURRENT_BIT
 		| GL_POLYGON_BIT | GL_TEXTURE_BIT);
   glEnable (GL_DEPTH_TEST);
+  glDisable (GL_BLEND);
   glDepthFunc (GL_LEQUAL);
   glBindTexture (GL_TEXTURE_2D, priv->textures[priv->current_skin]);
   glEnable (GL_TEXTURE_2D);
   glDisable (GL_TEXTURE_RECTANGLE_ARB);
-  glTexEnvi (GL_TEXTURE_2D, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+  glTexEnvi (GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 
   glPushMatrix ();
 
@@ -253,6 +254,90 @@ clutter_md2_paint (ClutterActor *self)
   glPopMatrix ();
 
   glPopAttrib ();
+}
+
+gint
+clutter_md2_get_n_skins (ClutterMD2 *md2)
+{
+  g_return_val_if_fail (CLUTTER_IS_MD2 (md2), 0);
+
+  return md2->priv->num_skins;
+}
+
+gint
+clutter_md2_get_current_skin (ClutterMD2 *md2)
+{
+  g_return_val_if_fail (CLUTTER_IS_MD2 (md2), 0);
+
+  return md2->priv->current_skin;
+}
+
+void
+clutter_md2_set_current_skin (ClutterMD2 *md2, gint skin_num)
+{
+  g_return_if_fail (CLUTTER_IS_MD2 (md2));
+  g_return_if_fail (skin_num >= 0 && skin_num < md2->priv->num_skins);
+
+  md2->priv->current_skin = skin_num;
+
+  clutter_actor_queue_redraw (CLUTTER_ACTOR (md2));
+}
+
+gint
+clutter_md2_get_n_frames (ClutterMD2 *md2)
+{
+  g_return_val_if_fail (CLUTTER_IS_MD2 (md2), 0);
+
+  return md2->priv->num_frames;
+}
+
+gint
+clutter_md2_get_current_frame (ClutterMD2 *md2)
+{
+  g_return_val_if_fail (CLUTTER_IS_MD2 (md2), 0);
+
+  return md2->priv->current_frame;
+}
+
+void
+clutter_md2_set_current_frame (ClutterMD2 *md2, gint frame_num)
+{
+  g_return_if_fail (CLUTTER_IS_MD2 (md2));
+  g_return_if_fail (frame_num >= 0 && frame_num < md2->priv->num_frames);
+
+  md2->priv->current_frame = frame_num;
+
+  clutter_actor_queue_redraw (CLUTTER_ACTOR (md2));
+}
+
+void
+clutter_md2_set_current_frame_by_name (ClutterMD2 *md2, const gchar *frame_name)
+{
+  ClutterMD2Private *priv;
+  int i;
+
+  g_return_if_fail (CLUTTER_IS_MD2 (md2));
+  g_return_if_fail (frame_name != NULL);
+
+  priv = md2->priv;
+
+  for (i = 0; i < priv->num_frames; i++)
+    if (!strcmp (priv->frames[i]->name, frame_name))
+      {
+	clutter_md2_set_current_frame (md2, i);
+	break;
+      }
+}
+
+const gchar *
+clutter_md2_get_frame_name (ClutterMD2 *md2, gint frame_num)
+{
+  g_return_val_if_fail (CLUTTER_IS_MD2 (md2), NULL);
+  g_return_val_if_fail (frame_num >= 0
+			&& frame_num < md2->priv->num_frames,
+			NULL);
+
+  return md2->priv->frames[frame_num]->name;
 }
 
 static gboolean
@@ -675,11 +760,13 @@ clutter_md2_load (ClutterMD2 *md2, const gchar *filename, GError **error)
   gboolean ret = TRUE;
   FILE *file;
   gchar *display_name;
-  ClutterMD2Private *priv = md2->priv;
+  ClutterMD2Private *priv;
 
   g_return_val_if_fail (CLUTTER_IS_MD2 (md2), FALSE);
   g_return_val_if_fail (error == NULL || *error == NULL, FALSE);
   g_return_val_if_fail (filename != NULL, FALSE);
+
+  priv = md2->priv;
 
   display_name = g_filename_display_name (filename);
 
@@ -770,6 +857,8 @@ clutter_md2_load (ClutterMD2 *md2, const gchar *filename, GError **error)
       if (priv->current_skin >= priv->num_skins)
 	priv->current_skin = 0;
     }
+
+  clutter_actor_queue_redraw (CLUTTER_ACTOR (md2));
 
   return ret;
 }

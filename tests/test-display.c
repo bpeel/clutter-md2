@@ -2,14 +2,109 @@
 #include <clutter-md2/clutter-md2.h>
 #include <stdlib.h>
 
+#define BUTTON_WIDTH   200
+#define BUTTON_HEIGHT  30
+#define BUTTON_GAP     5
+#define GRABBER_WIDTH  15
+#define GRABBER_HEIGHT 20
+
+typedef struct _CallbackData CallbackData;
+typedef struct _GrabberData GrabberData;
+
+struct _CallbackData
+{
+  int frame_num;
+  ClutterActor *md2;
+};
+
+struct _GrabberData
+{
+  ClutterActor *stage;
+  gboolean is_grabbed;
+  ClutterActor *scroll_group;
+  int grab_x, grab_y;
+};
+
+static gboolean
+on_frame_button_press (ClutterActor *rect, ClutterEvent *event,
+		       CallbackData *data)
+{
+  clutter_md2_set_current_frame (CLUTTER_MD2 (data->md2), data->frame_num);
+
+  return TRUE;
+}
+
+static gboolean
+on_grabber_button_press (ClutterActor *actor, ClutterButtonEvent *event,
+			 GrabberData *data)
+{
+  if (!data->is_grabbed)
+    {
+      data->is_grabbed = TRUE;
+      clutter_grab_pointer (actor);
+      data->grab_x = event->x - clutter_actor_get_x (actor);
+      data->grab_y = event->y - clutter_actor_get_y (actor);
+    }
+
+  return TRUE;
+}
+
+static gboolean
+on_grabber_button_release (ClutterActor *actor, ClutterButtonEvent *event,
+			   GrabberData *data)
+{
+  if (data->is_grabbed)
+    {
+      data->is_grabbed = FALSE;
+      clutter_ungrab_pointer ();
+    }
+
+  return FALSE;
+}
+
+static gboolean
+on_grabber_motion (ClutterActor *actor, ClutterMotionEvent *event,
+		   GrabberData *data)
+{
+  if (data->is_grabbed)
+    {
+      int max_grabber_pos
+	= clutter_actor_get_height (data->stage) - GRABBER_HEIGHT;
+      int grabber_pos = event->y - data->grab_y;
+      int min_group_pos = clutter_actor_get_height (data->stage)
+	- clutter_actor_get_height (data->scroll_group);
+
+      if (grabber_pos < 0)
+	grabber_pos = 0;
+      else if (grabber_pos > max_grabber_pos)
+	grabber_pos = max_grabber_pos;
+
+      if (min_group_pos > 0)
+	min_group_pos = 0;
+
+      clutter_actor_set_y (actor, grabber_pos);
+
+      clutter_actor_set_y (data->scroll_group,
+			   grabber_pos * min_group_pos / max_grabber_pos);
+
+      return TRUE;
+    }
+
+  return FALSE;
+}
+
 int
 main (int argc, char **argv)
 {
-  ClutterActor *stage, *md2;
+  ClutterActor *stage, *md2, *scroll_group, *grabber;
   GError *error = NULL;
   ClutterAlpha *alpha;
   ClutterTimeline *tl;
   ClutterBehaviour *b;
+  GrabberData grabber_data;
+  int i;
+  static const ClutterColor stage_color = { 0, 0, 0, 0 };
+  static const ClutterColor bg_color = { 5, 139, 192, 255 };
 
   clutter_init (&argc, &argv);
 
@@ -21,8 +116,11 @@ main (int argc, char **argv)
 
   stage = clutter_stage_get_default ();
 
+  clutter_stage_set_color (CLUTTER_STAGE (stage), &stage_color);
+
   md2 = clutter_md2_new ();
-  clutter_actor_set_size (md2, clutter_actor_get_width (stage),
+  clutter_actor_set_size (md2, clutter_actor_get_width (stage)
+			  - GRABBER_WIDTH - BUTTON_WIDTH - BUTTON_GAP * 2,
 			  clutter_actor_get_height (stage));
 
   if (!clutter_md2_load (CLUTTER_MD2 (md2), argv[1], &error))
@@ -46,6 +144,65 @@ main (int argc, char **argv)
   clutter_behaviour_apply (b, md2);
 
   clutter_container_add (CLUTTER_CONTAINER (stage), md2, NULL);
+
+  scroll_group = clutter_group_new ();
+
+  /* Make a button for each frame */
+  for (i = 0; i < clutter_md2_get_n_frames (CLUTTER_MD2 (md2)); i++)
+    {
+      ClutterActor *group, *rect, *label;
+      const gchar *frame_name;
+      CallbackData *data = g_new (CallbackData, 1);
+
+      data->md2 = md2;
+      data->frame_num = i;
+
+      group = clutter_group_new ();
+
+      rect = clutter_rectangle_new_with_color (&bg_color);
+      clutter_actor_set_size (rect, BUTTON_WIDTH, BUTTON_HEIGHT);
+      clutter_actor_set_reactive (rect, TRUE);
+
+      frame_name = clutter_md2_get_frame_name (CLUTTER_MD2 (md2), i);
+      label = clutter_label_new_with_text ("Sans 10", frame_name);
+      clutter_actor_set_position (label, BUTTON_WIDTH / 2
+				  - clutter_actor_get_width (label) / 2,
+				  BUTTON_HEIGHT / 2
+				  - clutter_actor_get_height (label) / 2);
+
+      clutter_actor_set_position (group, 0, i * (BUTTON_HEIGHT + BUTTON_GAP));
+
+      clutter_container_add (CLUTTER_CONTAINER (group), rect, label, NULL);
+      clutter_container_add (CLUTTER_CONTAINER (scroll_group), group, NULL);
+
+      g_signal_connect_data (G_OBJECT (rect), "button-press-event",
+			     G_CALLBACK (on_frame_button_press), data,
+			     (GClosureNotify) g_free, 0);
+    }
+
+  clutter_actor_set_position (scroll_group,
+			      clutter_actor_get_width (stage) - GRABBER_WIDTH
+			      - BUTTON_GAP - BUTTON_WIDTH, 0);
+
+  grabber = clutter_rectangle_new_with_color (&bg_color);
+  clutter_actor_set_size (grabber, GRABBER_WIDTH, GRABBER_HEIGHT);
+  clutter_actor_set_position (grabber, clutter_actor_get_width (stage)
+			      - GRABBER_WIDTH, 0);
+  clutter_actor_set_reactive (grabber, TRUE);
+
+  clutter_container_add (CLUTTER_CONTAINER (stage),
+			 scroll_group, grabber, NULL);
+
+  grabber_data.stage = stage;
+  grabber_data.is_grabbed = FALSE;
+  grabber_data.scroll_group = scroll_group;
+
+  g_signal_connect (G_OBJECT (grabber), "button-press-event", 
+		    G_CALLBACK (on_grabber_button_press), &grabber_data);
+  g_signal_connect (G_OBJECT (grabber), "button-release-event",
+		    G_CALLBACK (on_grabber_button_release), &grabber_data);
+  g_signal_connect (G_OBJECT (grabber), "motion-event",
+		    G_CALLBACK (on_grabber_motion), &grabber_data);
 
   clutter_actor_show (stage);
 

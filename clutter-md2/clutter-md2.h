@@ -76,6 +76,17 @@ gboolean clutter_md2_load (ClutterMD2   *md2,
 			   const gchar  *filename,
 			   GError      **error);
 
+gint clutter_md2_get_n_skins (ClutterMD2 *md2);
+gint clutter_md2_get_current_skin (ClutterMD2 *md2);
+void clutter_md2_set_current_skin (ClutterMD2 *md2, gint skin_num);
+
+gint clutter_md2_get_n_frames (ClutterMD2 *md2);
+gint clutter_md2_get_current_frame (ClutterMD2 *md2);
+void clutter_md2_set_current_frame (ClutterMD2 *md2, gint frame_num);
+void clutter_md2_set_current_frame_by_name (ClutterMD2 *md2,
+					    const gchar *frame_name); 
+const gchar *clutter_md2_get_frame_name (ClutterMD2 *md2, gint frame_num);
+
 G_END_DECLS
 
 
