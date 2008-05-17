@@ -150,7 +150,7 @@ main (int argc, char **argv)
 
   if (argc < 2)
     {
-      fprintf (stderr, "usage: %s <md2file>\n", argv[0]);
+      fprintf (stderr, "usage: %s <md2file> [skin]...\n", argv[0]);
       exit (1);
     }
 
@@ -168,6 +168,13 @@ main (int argc, char **argv)
       fprintf (stderr, "%s\n", error->message);
       g_error_free (error);
     }
+
+  for (i = 2; i < argc; i++)
+    if (!clutter_md2_add_skin (CLUTTER_MD2 (md2), argv[i], &error))
+      {
+	fprintf (stderr, "%s\n", error->message);
+	g_error_free (error);
+      }
 
   tl = clutter_timeline_new (360, 60);
   clutter_timeline_start (tl);

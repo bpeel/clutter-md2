@@ -76,6 +76,10 @@ gboolean clutter_md2_load (ClutterMD2   *md2,
 			   const gchar  *filename,
 			   GError      **error);
 
+gboolean clutter_md2_add_skin (ClutterMD2  *md2,
+			       const gchar *filename,
+			       GError     **error);
+
 gint clutter_md2_get_n_skins (ClutterMD2 *md2);
 gint clutter_md2_get_current_skin (ClutterMD2 *md2);
 void clutter_md2_set_current_skin (ClutterMD2 *md2, gint skin_num);

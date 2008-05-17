@@ -31,6 +31,7 @@
 #include <glib/gstdio.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
 #include <clutter/clutter-actor.h>
+#include <clutter/clutter-util.h>
 #include <GL/gl.h>
 #include <errno.h>
 #include <string.h>
@@ -48,13 +49,17 @@ static void clutter_md2_finalize (GObject *self);
 
 typedef struct _ClutterMD2Frame ClutterMD2Frame;
 
-#define CLUTTER_MD2_FORMAT_MAGIC   0x32504449 /* IDP2 */
-#define CLUTTER_MD2_FORMAT_VERSION 8
+#define CLUTTER_MD2_FORMAT_MAGIC       0x32504449 /* IDP2 */
+#define CLUTTER_MD2_FORMAT_VERSION     8
 
 /* If the file tries to load some data that occupies more than this
    number of bytes then assume the file is invalid instead of trying
    to allocate large amounts of memory */
-#define CLUTTER_MD2_MAX_MEM_SIZE (4 * 1024 * 1024)
+#define CLUTTER_MD2_MAX_MEM_SIZE       (4 * 1024 * 1024)
+
+/* If the skin size is bigger than this then assume the file is
+   invalid */
+#define CLUTTER_MD2_MAX_SKIN_SIZE      65536
 
 #define CLUTTER_MD2_MAX_FRAME_NAME_LEN 15
 #define CLUTTER_MD2_MAX_SKIN_NAME_LEN  63
@@ -68,9 +73,11 @@ struct _ClutterMD2Private
   float current_frame_interval;
   ClutterMD2Frame **frames;
 
+  int skin_width, skin_height;
   int num_skins;
   int current_skin;
   GLuint *textures;
+  int textures_size;
 
   /* Maximum extents of all frames */
   float left, right;
@@ -476,6 +483,12 @@ clutter_md2_load_gl_commands (ClutterMD2 *md2, FILE *file,
   ClutterMD2Private *priv = md2->priv;
   guchar *p;
   int byte_len = num_commands * sizeof (guint32);
+  guint32 texture_width, texture_height;
+
+  /* The textures are always power of two sized so we may need to
+     scale the texture coordinates */
+  texture_width = clutter_util_next_p2 (priv->skin_width);
+  texture_height = clutter_util_next_p2 (priv->skin_height);
 
   if (!clutter_md2_seek (file, file_offset, display_name, error))
     return FALSE;
@@ -521,9 +534,14 @@ clutter_md2_load_gl_commands (ClutterMD2 *md2, FILE *file,
 	{
 	  guint32 vertex_num;
 
-	  p += sizeof (float) * 2;
+	  /* Scale the texture coordinates */
+	  *(float *) p *= priv->skin_width / (float) texture_width;
+	  p += sizeof (float);
+	  *(float *) p *= priv->skin_height / (float) texture_height;
+	  p += sizeof (float);
+
 	  *(guint32 *) p = vertex_num = GUINT32_FROM_LE (*(guint32 *) p);
-	  p += sizeof (gint32);
+	  p += sizeof (guint32);
 
 	  /* Make sure the vertex number is in range */
 	  if (vertex_num >= num_vertices)
@@ -677,6 +695,131 @@ clutter_md2_load_frames (ClutterMD2 *md2, FILE *file,
   return TRUE;
 }
 
+gboolean
+clutter_md2_add_skin (ClutterMD2 *md2, const gchar *filename, GError **error)
+{
+  ClutterMD2Private *priv;
+  GdkPixbuf *pixbuf;
+  int bpp, rowstride, alignment = 1;
+  guint texture_width, texture_height;
+  int image_width, image_height;
+
+  g_return_val_if_fail (CLUTTER_IS_MD2 (md2), FALSE);
+  g_return_val_if_fail (error == NULL || *error == NULL, FALSE);
+  g_return_val_if_fail (filename != NULL, FALSE);
+
+  priv = md2->priv;
+
+  /* The textures should always be a power of two */
+  texture_width = clutter_util_next_p2 (priv->skin_width);
+  texture_height = clutter_util_next_p2 (priv->skin_height);
+
+  pixbuf = gdk_pixbuf_new_from_file (filename, error);
+
+  if (pixbuf == NULL)
+    return FALSE;
+
+  image_width = gdk_pixbuf_get_width (pixbuf);
+  image_height = gdk_pixbuf_get_height (pixbuf);
+  bpp = gdk_pixbuf_get_has_alpha (pixbuf) ? 4 : 3;
+  rowstride = gdk_pixbuf_get_rowstride (pixbuf);
+
+  /* If the pixmap isn't the same size as the texture then create a
+     new pixbuf and set a subregion of it */
+  if (image_width != texture_width || image_height != texture_height)
+    {
+      GdkPixbuf *pixbuf_tmp;
+
+      pixbuf_tmp = gdk_pixbuf_new (GDK_COLORSPACE_RGB,
+				   gdk_pixbuf_get_has_alpha (pixbuf),
+				   gdk_pixbuf_get_bits_per_sample (pixbuf),
+				   texture_width, texture_height);
+
+      gdk_pixbuf_copy_area (pixbuf, 0, 0,
+			    MIN (texture_width, image_width),
+			    MIN (texture_height, image_height),
+			    pixbuf_tmp, 0, 0);
+
+      g_object_unref (pixbuf);
+      pixbuf = pixbuf_tmp;
+      rowstride = gdk_pixbuf_get_rowstride (pixbuf);
+
+      /* If the new pixbuf is bigger than the old one then copy in the
+	 pixels at the edges so there won't be artifacts if the
+	 texture is linear filtered */
+      if (image_height < texture_height)
+	{
+	  int row;
+	  guchar *dst = gdk_pixbuf_get_pixels (pixbuf)
+	    + rowstride * image_height;
+	  const guchar *src = dst - rowstride;
+
+	  for (row = image_height; row < texture_height; row++)
+	    {
+	      memcpy (dst, src, image_width * bpp);
+	      dst += rowstride;
+	    }
+	}
+      if (image_width < texture_width)
+	{
+	  int row, col;
+	  guchar *dst = gdk_pixbuf_get_pixels (pixbuf) + bpp * image_width;
+	  const guchar *src = dst - bpp;
+
+	  for (row = 0; row < texture_height; row++)
+	    {
+	      for (col = texture_width - image_width; col > 0; col--)
+		{
+		  memcpy (dst, src, bpp);
+		  dst += bpp;
+		}
+	      dst += rowstride - (texture_width - image_width) * bpp;
+	      src += rowstride;
+	    }
+	}
+    }
+
+  while ((rowstride & 1) == 0 && alignment < 8)
+    {
+      rowstride >>= 1;
+      alignment <<= 1;
+    }
+
+  if (priv->num_skins >= priv->textures_size)
+    {
+      if (priv->textures_size == 0)
+	priv->textures = g_malloc (++priv->textures_size * sizeof (GLuint));
+      else
+	priv->textures = g_realloc (priv->textures,
+				    (priv->textures_size *= 2)
+				    * sizeof (GLuint));
+    }
+      
+  glGenTextures (1, priv->textures + priv->num_skins);
+  glBindTexture (GL_TEXTURE_2D, priv->textures[priv->num_skins++]);
+  glPixelStorei (GL_UNPACK_ROW_LENGTH,
+		 gdk_pixbuf_get_rowstride (pixbuf) / bpp);
+  glPixelStorei (GL_UNPACK_ALIGNMENT, alignment);
+
+  glTexParameterf (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameterf (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameterf (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  glTexParameterf (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+  glTexImage2D (GL_TEXTURE_2D, 0,
+		gdk_pixbuf_get_has_alpha (pixbuf) ? GL_RGBA : GL_RGB,
+		gdk_pixbuf_get_width (pixbuf),
+		gdk_pixbuf_get_height (pixbuf),
+		0,
+		gdk_pixbuf_get_has_alpha (pixbuf) ? GL_RGBA : GL_RGB,
+		GL_UNSIGNED_BYTE,
+		gdk_pixbuf_get_pixels (pixbuf));
+
+  g_object_unref (pixbuf);  
+
+  return TRUE;
+}
+
 static gboolean
 clutter_md2_load_skins (ClutterMD2 *md2, FILE *file,
 			const gchar *file_name,
@@ -689,30 +832,18 @@ clutter_md2_load_skins (ClutterMD2 *md2, FILE *file,
   int i;
 
   if (priv->textures)
-    {
       glDeleteTextures (priv->num_skins, priv->textures);
-      g_free (priv->textures);
-    }
 
-  priv->num_skins = num_skins;
-
-  if ((priv->textures = clutter_md2_check_malloc (display_name,
-						  sizeof (GLuint)
-						  * num_skins, error)) == NULL)
-    return FALSE;
-
-  memset (priv->textures, 0, sizeof (GLuint) * num_skins);
-  glGenTextures (priv->num_skins, priv->textures);
+  priv->num_skins = 0;
 
   if (!clutter_md2_seek (file, file_offset, display_name, error))
     return FALSE;
 
   for (i = 0; i < num_skins; i++)
     {
-      GdkPixbuf *pixbuf;
       gchar skin_name[CLUTTER_MD2_MAX_SKIN_NAME_LEN + 1];
       gchar *dir_name, *full_skin_path;
-      int bpp, rowstride, alignment = 1;
+      gboolean add_ret;
 
       if (!clutter_md2_read (skin_name, CLUTTER_MD2_MAX_SKIN_NAME_LEN + 1,
 			     file, display_name, error))
@@ -726,41 +857,10 @@ clutter_md2_load_skins (ClutterMD2 *md2, FILE *file,
       full_skin_path = g_build_filename (dir_name, skin_name, NULL);
       g_free (dir_name);
 
-      pixbuf = gdk_pixbuf_new_from_file (full_skin_path, error);
-      
+      add_ret = clutter_md2_add_skin (md2, full_skin_path, error);
       g_free (full_skin_path);
-
-      if (pixbuf == NULL)
+      if (!add_ret)
 	return FALSE;
-
-      bpp = gdk_pixbuf_get_has_alpha (pixbuf) ? 4 : 3;
-      rowstride = gdk_pixbuf_get_rowstride (pixbuf);
-      while ((rowstride & 1) == 0 && alignment < 8)
-	{
-	  rowstride >>= 1;
-	  alignment <<= 1;
-	}
-      
-      glBindTexture (GL_TEXTURE_2D, priv->textures[i]);
-      glPixelStorei (GL_UNPACK_ROW_LENGTH,
-		     gdk_pixbuf_get_rowstride (pixbuf) / bpp);
-      glPixelStorei (GL_UNPACK_ALIGNMENT, alignment);
-
-      glTexParameterf (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-      glTexParameterf (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-      glTexParameterf (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-      glTexParameterf (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-
-      glTexImage2D (GL_TEXTURE_2D, 0,
-		    gdk_pixbuf_get_has_alpha (pixbuf) ? GL_RGBA : GL_RGB,
-		    gdk_pixbuf_get_width (pixbuf),
-		    gdk_pixbuf_get_height (pixbuf),
-		    0,
-		    gdk_pixbuf_get_has_alpha (pixbuf) ? GL_RGBA : GL_RGB,
-		    GL_UNSIGNED_BYTE,
-		    gdk_pixbuf_get_pixels (pixbuf));
-
-      g_object_unref (pixbuf);
     }
 
   return TRUE;
@@ -850,6 +950,9 @@ clutter_md2_load (ClutterMD2 *md2, const gchar *filename, GError **error)
 	  for (i = 0; i < CLUTTER_MD2_HEADER_COUNT; i++)
 	    header[i] = GUINT32_FROM_LE (header[i]);
 
+	  priv->skin_width = header[CLUTTER_MD2_HEADER_SKIN_WIDTH];
+	  priv->skin_height = header[CLUTTER_MD2_HEADER_SKIN_HEIGHT];
+
 	  if (header[CLUTTER_MD2_HEADER_MAGIC] != CLUTTER_MD2_FORMAT_MAGIC)
 	    {
 	      g_set_error (error,
@@ -870,6 +973,16 @@ clutter_md2_load (ClutterMD2 *md2, const gchar *filename, GError **error)
 			   header[CLUTTER_MD2_HEADER_VERSION],
 			   display_name);
 			   
+	      ret = FALSE;
+	    }
+	  else if (priv->skin_width > CLUTTER_MD2_MAX_SKIN_SIZE
+		   || priv->skin_height > CLUTTER_MD2_MAX_SKIN_SIZE)
+	    {
+	      g_set_error (error,
+			   CLUTTER_MD2_ERROR,
+			   CLUTTER_MD2_ERROR_INVALID_FILE,
+			   "'%s' has an invalid skin size",
+			   display_name);
 	      ret = FALSE;
 	    }
 	  else if (!clutter_md2_load_gl_commands
