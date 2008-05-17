@@ -1171,5 +1171,7 @@ clutter_md2_finalize (GObject *self)
 {
   ClutterMD2 *md2 = CLUTTER_MD2 (self);
 
+  g_free (md2->priv->vertices);
+
   clutter_md2_free_data (md2);
 }
