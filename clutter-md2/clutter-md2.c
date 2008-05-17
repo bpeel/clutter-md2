@@ -64,7 +64,8 @@ struct _ClutterMD2Private
   guchar *gl_commands;
 
   int num_frames;
-  int current_frame;
+  int current_frame_a, current_frame_b;
+  float current_frame_interval;
   ClutterMD2Frame **frames;
 
   int num_skins;
@@ -141,7 +142,8 @@ clutter_md2_init (ClutterMD2 *self)
 
   priv->gl_commands = NULL;
   priv->num_frames = 0;
-  priv->current_frame = 0;
+  priv->current_frame_a = 0;
+  priv->current_frame_b = 0;
   priv->frames = NULL;
   priv->num_skins = 0;
   priv->current_skin = 0;
@@ -160,8 +162,8 @@ clutter_md2_paint (ClutterActor *self)
   ClutterMD2 *md2 = CLUTTER_MD2 (self);
   ClutterMD2Private *priv = md2->priv;
   ClutterGeometry geom;
-  ClutterMD2Frame *frame;
-  guchar *vertices;
+  ClutterMD2Frame *frame_a, *frame_b;
+  guchar *vertices_a, *vertices_b;
   guchar *gl_command;
   float scale;
   
@@ -170,15 +172,18 @@ clutter_md2_paint (ClutterActor *self)
   if (priv->gl_commands == NULL
       || priv->frames == NULL
       || priv->textures == NULL
-      || priv->current_frame >= priv->num_frames
+      || priv->current_frame_a >= priv->num_frames
+      || priv->current_frame_b >= priv->num_frames
       || priv->current_skin >= priv->num_skins
       || geom.width == 0
       || geom.height == 0
       || priv->top == priv->bottom)
     return;
 
-  frame = priv->frames[priv->current_frame];
-  vertices = frame->vertices;
+  frame_a = priv->frames[priv->current_frame_a];
+  frame_b = priv->frames[priv->current_frame_b];
+  vertices_a = frame_a->vertices;
+  vertices_b = frame_b->vertices;
   gl_command = priv->gl_commands;
 
   glPushAttrib (GL_ENABLE_BIT | GL_CURRENT_BIT
@@ -230,7 +235,6 @@ clutter_md2_paint (ClutterActor *self)
 	{
 	  float s, t;
 	  int vertex_num;
-	  guchar *vertex;
 
 	  s = *(float *) gl_command;
 	  gl_command += sizeof (float);
@@ -239,13 +243,45 @@ clutter_md2_paint (ClutterActor *self)
 	  vertex_num = *(guint32 *) gl_command;
 	  gl_command += sizeof (guint32);
 
-	  vertex = vertices + vertex_num * 4;
-
 	  glTexCoord2f (s, t);
-	  glNormal3fv (_clutter_md2_norms + vertex[3] * 3);
-	  glVertex3f (vertex[0] * frame->scale[0] + frame->translate[0],
-		      vertex[1] * frame->scale[1] + frame->translate[1],
-		      vertex[2] * frame->scale[2] + frame->translate[2]);
+
+	  if (frame_a == frame_b)
+	    {
+	      guchar *vertex = vertices_a + vertex_num * 4;
+
+	      glNormal3fv (_clutter_md2_norms + vertex[3] * 3);
+	      glVertex3f (vertex[0] * frame_a->scale[0]
+			  + frame_a->translate[0],
+			  vertex[1] * frame_a->scale[1]
+			  + frame_a->translate[1],
+			  vertex[2] * frame_a->scale[2]
+			  + frame_a->translate[2]);
+	    }
+	  else
+	    {
+	      guchar *vertex_ap = vertices_a + vertex_num * 4;
+	      guchar *vertex_bp = vertices_b + vertex_num * 4;
+	      const float *norm_a = _clutter_md2_norms + vertex_ap[3] * 3;
+	      const float *norm_b = _clutter_md2_norms + vertex_bp[3] * 3;
+	      float interval = priv->current_frame_interval;
+	      float vert_a[] = {
+		vertex_ap[0] * frame_a->scale[0] + frame_a->translate[0],
+		vertex_ap[1] * frame_a->scale[1] + frame_a->translate[1],
+		vertex_ap[2] * frame_a->scale[2] + frame_a->translate[2]
+	      };
+	      float vert_b[] = {
+		vertex_bp[0] * frame_b->scale[0] + frame_b->translate[0],
+		vertex_bp[1] * frame_b->scale[1] + frame_b->translate[1],
+		vertex_bp[2] * frame_b->scale[2] + frame_b->translate[2]
+	      };
+	      
+	      glNormal3f (norm_a[0] + (norm_b[0] - norm_a[0]) * interval,
+			  norm_a[1] + (norm_b[1] - norm_a[1]) * interval,
+			  norm_a[2] + (norm_b[2] - norm_a[2]) * interval);
+	      glVertex3f (vert_a[0] + (vert_b[0] - vert_a[0]) * interval,
+			  vert_a[1] + (vert_b[1] - vert_a[1]) * interval,
+			  vert_a[2] + (vert_b[2] - vert_a[2]) * interval);
+	    }
 	}
 
       glEnd ();
@@ -296,7 +332,7 @@ clutter_md2_get_current_frame (ClutterMD2 *md2)
 {
   g_return_val_if_fail (CLUTTER_IS_MD2 (md2), 0);
 
-  return md2->priv->current_frame;
+  return md2->priv->current_frame_a;
 }
 
 void
@@ -305,7 +341,8 @@ clutter_md2_set_current_frame (ClutterMD2 *md2, gint frame_num)
   g_return_if_fail (CLUTTER_IS_MD2 (md2));
   g_return_if_fail (frame_num >= 0 && frame_num < md2->priv->num_frames);
 
-  md2->priv->current_frame = frame_num;
+  md2->priv->current_frame_a = frame_num;
+  md2->priv->current_frame_b = frame_num;
 
   clutter_actor_queue_redraw (CLUTTER_ACTOR (md2));
 }
@@ -327,6 +364,21 @@ clutter_md2_set_current_frame_by_name (ClutterMD2 *md2, const gchar *frame_name)
 	clutter_md2_set_current_frame (md2, i);
 	break;
       }
+}
+
+void
+clutter_md2_set_sub_frame (ClutterMD2 *md2, gint frame_a, gint frame_b,
+			   gfloat interval)
+{
+  g_return_if_fail (CLUTTER_IS_MD2 (md2));
+  g_return_if_fail (frame_a >= 0 && frame_a < md2->priv->num_frames);
+  g_return_if_fail (frame_b >= 0 && frame_b < md2->priv->num_frames);
+
+  md2->priv->current_frame_a = frame_a;
+  md2->priv->current_frame_b = frame_b;
+  md2->priv->current_frame_interval = interval;
+
+  clutter_actor_queue_redraw (CLUTTER_ACTOR (md2));
 }
 
 const gchar *
@@ -738,7 +790,8 @@ clutter_md2_free_data (ClutterMD2 *md2)
       priv->frames = NULL;
     }
 
-  priv->current_frame = 0;
+  priv->current_frame_a = 0;
+  priv->current_frame_b = 0;
   priv->num_frames = 0;
 
   if (priv->textures)
@@ -852,8 +905,9 @@ clutter_md2_load (ClutterMD2 *md2, const gchar *filename, GError **error)
     clutter_md2_free_data (md2);
   else
     {
-      if (priv->current_frame >= priv->num_frames)
-	priv->current_frame = 0;
+      if (priv->current_frame_a >= priv->num_frames
+	  || priv->current_frame_b >= priv->num_frames)
+	priv->current_frame_b = priv->current_frame_a = 0;
       if (priv->current_skin >= priv->num_skins)
 	priv->current_skin = 0;
     }

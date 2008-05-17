@@ -1,5 +1,6 @@
 #include <clutter/clutter.h>
 #include <clutter-md2/clutter-md2.h>
+#include <clutter-md2/clutter-behaviour-md2-animate.h>
 #include <stdlib.h>
 
 #define BUTTON_WIDTH   200
@@ -9,12 +10,19 @@
 #define GRABBER_HEIGHT 20
 
 typedef struct _CallbackData CallbackData;
+typedef struct _DisplayState DisplayState;
 typedef struct _GrabberData GrabberData;
 
 struct _CallbackData
 {
   int frame_num;
+  DisplayState *state;
+};
+
+struct _DisplayState
+{
   ClutterActor *md2;
+  ClutterBehaviour *anim;
 };
 
 struct _GrabberData
@@ -26,10 +34,41 @@ struct _GrabberData
 };
 
 static gboolean
-on_frame_button_press (ClutterActor *rect, ClutterEvent *event,
+on_frame_button_press (ClutterActor *rect, ClutterButtonEvent *event,
 		       CallbackData *data)
 {
-  clutter_md2_set_current_frame (CLUTTER_MD2 (data->md2), data->frame_num);
+  int frame_start, frame_end;
+  ClutterBehaviourMD2Animate *anim_md2
+    = CLUTTER_BEHAVIOUR_MD2_ANIMATE (data->state->anim);
+  ClutterAlpha *alpha = clutter_behaviour_get_alpha (data->state->anim);
+  ClutterTimeline *tl = clutter_alpha_get_timeline (alpha);
+
+  clutter_behaviour_md2_animate_get_bounds (anim_md2, &frame_start, &frame_end);
+
+  if (event->button == 3)
+    frame_end = data->frame_num;
+  else
+    {
+      if (frame_start == frame_end)
+	frame_start = frame_end = data->frame_num;
+      else
+	frame_start = data->frame_num;
+    }
+
+  clutter_behaviour_md2_animate_set_bounds (anim_md2, frame_start, frame_end);
+
+  if (frame_start == frame_end)
+    clutter_timeline_stop (tl);
+  else
+    {
+      clutter_timeline_set_n_frames (tl, 16 * (ABS (frame_start
+						    - frame_end) + 1));
+      clutter_timeline_rewind (tl);
+      clutter_timeline_start (tl);
+    }
+
+  clutter_md2_set_current_frame (CLUTTER_MD2 (data->state->md2),
+				 frame_start);
 
   return TRUE;
 }
@@ -102,6 +141,7 @@ main (int argc, char **argv)
   ClutterTimeline *tl;
   ClutterBehaviour *b;
   GrabberData grabber_data;
+  DisplayState state;
   int i;
   static const ClutterColor stage_color = { 0, 0, 0, 0 };
   static const ClutterColor bg_color = { 5, 139, 192, 255 };
@@ -145,6 +185,13 @@ main (int argc, char **argv)
 
   clutter_container_add (CLUTTER_CONTAINER (stage), md2, NULL);
 
+  tl = clutter_timeline_new (1, 60);
+  clutter_timeline_set_loop (tl, TRUE);
+  alpha = clutter_alpha_new_full (tl, CLUTTER_ALPHA_RAMP_INC, NULL, NULL);
+  state.anim = clutter_behaviour_md2_animate_new (alpha, 0, 0);
+  clutter_behaviour_apply (state.anim, md2);
+  state.md2 = md2;
+
   scroll_group = clutter_group_new ();
 
   /* Make a button for each frame */
@@ -154,7 +201,7 @@ main (int argc, char **argv)
       const gchar *frame_name;
       CallbackData *data = g_new (CallbackData, 1);
 
-      data->md2 = md2;
+      data->state = &state;
       data->frame_num = i;
 
       group = clutter_group_new ();

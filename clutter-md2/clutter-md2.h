@@ -53,7 +53,7 @@ typedef enum {
 GQuark clutter_md2_error_quark (void);
 
 typedef struct _ClutterMD2 ClutterMD2;
-typedef struct _ClutterMD2Private  ClutterMD2Private;
+typedef struct _ClutterMD2Private ClutterMD2Private;
 typedef struct _ClutterMD2Class ClutterMD2Class;
 
 struct _ClutterMD2
@@ -84,7 +84,10 @@ gint clutter_md2_get_n_frames (ClutterMD2 *md2);
 gint clutter_md2_get_current_frame (ClutterMD2 *md2);
 void clutter_md2_set_current_frame (ClutterMD2 *md2, gint frame_num);
 void clutter_md2_set_current_frame_by_name (ClutterMD2 *md2,
-					    const gchar *frame_name); 
+					    const gchar *frame_name);
+void clutter_md2_set_sub_frame (ClutterMD2 *md2,
+				gint frame_a, gint frame_b,
+				gfloat interval);
 const gchar *clutter_md2_get_frame_name (ClutterMD2 *md2, gint frame_num);
 
 G_END_DECLS

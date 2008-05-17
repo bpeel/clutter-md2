@@ -20,7 +20,8 @@ LDADD =                                                 \
 # please, keep this sorted alphabetically
 source_h =					          \
 	$(srcdir)/clutter-md2.h                           \
-	$(top_builddir)/clutter-md2/clutter-md2-version.h
+	$(top_builddir)/clutter-md2/clutter-md2-version.h \
+	$(srcdir)/clutter-behaviour-md2-animate.h
 
 source_h_priv =                         \
 	clutter-md2-norms.h
@@ -28,6 +29,7 @@ source_h_priv =                         \
 # please, keep this sorted alphabetically
 source_c =                              \
 	clutter-md2.c                   \
+	clutter-behaviour-md2-animate.c \
 	clutter-md2-norms.c
 
 libclutter_md2_@CLUTTER_MD2_API_VERSION@_la_LIBADD = \
