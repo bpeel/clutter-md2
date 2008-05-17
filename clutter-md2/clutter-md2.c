@@ -32,9 +32,10 @@
 #include <gdk-pixbuf/gdk-pixbuf.h>
 #include <clutter/clutter-actor.h>
 #include <clutter/clutter-util.h>
-#include <GL/gl.h>
 #include <errno.h>
 #include <string.h>
+/* Include cogl to get the right GL header for this platform */
+#include <cogl/cogl.h>
 
 #include "clutter-md2.h"
 #include "clutter-md2-norms.h"
@@ -48,6 +49,7 @@ static void clutter_md2_paint (ClutterActor *self);
 static void clutter_md2_finalize (GObject *self);
 
 typedef struct _ClutterMD2Frame ClutterMD2Frame;
+typedef struct _ClutterMD2State ClutterMD2State;
 
 #define CLUTTER_MD2_FORMAT_MAGIC       0x32504449 /* IDP2 */
 #define CLUTTER_MD2_FORMAT_VERSION     8
@@ -64,6 +66,8 @@ typedef struct _ClutterMD2Frame ClutterMD2Frame;
 #define CLUTTER_MD2_MAX_FRAME_NAME_LEN 15
 #define CLUTTER_MD2_MAX_SKIN_NAME_LEN  63
 
+#define CLUTTER_MD2_FLOATS_PER_VERTEX  (3 + 3 + 2)
+
 struct _ClutterMD2Private
 {
   guchar *gl_commands;
@@ -78,6 +82,10 @@ struct _ClutterMD2Private
   int current_skin;
   GLuint *textures;
   int textures_size;
+
+  /* Buffer for vertices to pass to OpenGL */
+  GLfloat *vertices;
+  guint vertices_size;
 
   /* Maximum extents of all frames */
   float left, right;
@@ -97,6 +105,23 @@ struct _ClutterMD2Frame
   float back, front;
 
   guchar vertices[1];
+};
+
+/* Variables for some of the OpenGL state so that it can be preserved
+   across paint calls */
+struct _ClutterMD2State
+{
+  GLboolean depth_test      : 1;
+  GLboolean blend           : 1;
+  GLboolean texture_2d      : 1;
+  GLboolean rectangle       : 1;
+  GLboolean tex_coord_array : 1;
+  GLboolean normal_array    : 1;
+  GLboolean vertex_array    : 1;
+  GLboolean color_array     : 1;
+  GLint     depth_func;
+  GLint     texture_num;
+  GLint     tex_env_mode;
 };
 
 enum
@@ -155,12 +180,89 @@ clutter_md2_init (ClutterMD2 *self)
   priv->num_skins = 0;
   priv->current_skin = 0;
   priv->textures = NULL;
+  priv->vertices = g_malloc (sizeof (GLfloat) * CLUTTER_MD2_FLOATS_PER_VERTEX
+			     * (priv->vertices_size = 1));
 }
 
 ClutterActor *
 clutter_md2_new (void)
 {
   return g_object_new (CLUTTER_TYPE_MD2, NULL);
+}
+
+static void
+clutter_md2_set_vertex_buffer (ClutterMD2 *self)
+{
+  glTexCoordPointer (2, GL_FLOAT,
+		     CLUTTER_MD2_FLOATS_PER_VERTEX * sizeof (GLfloat),
+		     self->priv->vertices);
+  glNormalPointer (GL_FLOAT,
+		   CLUTTER_MD2_FLOATS_PER_VERTEX * sizeof (GLfloat),
+		   self->priv->vertices + 2);
+  glVertexPointer (3, GL_FLOAT,
+		   CLUTTER_MD2_FLOATS_PER_VERTEX * sizeof (GLfloat),
+		   self->priv->vertices + 5);
+}
+
+static void
+clutter_md2_save_state (ClutterMD2State *state)
+{
+  state->depth_test      = glIsEnabled (GL_DEPTH_TEST) ? TRUE : FALSE;
+  state->blend           = glIsEnabled (GL_BLEND) ? TRUE : FALSE;
+  state->texture_2d      = glIsEnabled (GL_TEXTURE_2D) ? TRUE : FALSE;
+#ifdef GL_TEXTURE_RECTANGLE_ARB
+  state->rectangle       = glIsEnabled (GL_TEXTURE_RECTANGLE_ARB)
+    ? TRUE : FALSE;
+#endif
+  state->tex_coord_array = glIsEnabled (GL_TEXTURE_COORD_ARRAY) ? TRUE : FALSE;
+  state->normal_array    = glIsEnabled (GL_NORMAL_ARRAY) ? TRUE : FALSE;
+  state->vertex_array    = glIsEnabled (GL_VERTEX_ARRAY) ? TRUE : FALSE;
+  state->color_array     = glIsEnabled (GL_COLOR_ARRAY) ? TRUE : FALSE;
+
+  glGetIntegerv (GL_DEPTH_FUNC, &state->depth_func);
+  glGetIntegerv (GL_TEXTURE_BINDING_2D, &state->texture_num);
+  glGetTexEnviv (GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, &state->tex_env_mode);  
+}
+
+static void
+clutter_md2_set_enabled (GLenum flag, GLboolean value)
+{
+  if (value)
+    glEnable (flag);
+  else
+    glDisable (flag);
+}
+
+static void
+clutter_md2_set_client_enabled (GLenum flag, GLboolean value)
+{
+  if (value)
+    glEnableClientState (flag);
+  else
+    glDisableClientState (flag);
+}
+
+static void
+clutter_md2_restore_state (const ClutterMD2State *state)
+{
+  glTexEnvi (GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, state->tex_env_mode);
+  glBindTexture (GL_TEXTURE_2D, state->texture_num);
+  glDepthFunc (state->depth_func);
+
+  clutter_md2_set_client_enabled (GL_COLOR_ARRAY,
+				  state->color_array);
+  clutter_md2_set_client_enabled (GL_VERTEX_ARRAY,
+				  state->vertex_array);
+  clutter_md2_set_client_enabled (GL_NORMAL_ARRAY,
+				  state->normal_array);
+  clutter_md2_set_client_enabled (GL_TEXTURE_COORD_ARRAY,
+				  state->tex_coord_array);
+#ifdef GL_TEXTURE_RECTANGLE_ARB
+  clutter_md2_set_enabled (GL_TEXTURE_RECTANGLE_ARB, state->rectangle);
+#endif
+  clutter_md2_set_enabled (GL_TEXTURE_2D,            state->texture_2d);
+  clutter_md2_set_enabled (GL_BLEND,                 state->blend);
+  clutter_md2_set_enabled (GL_DEPTH_TEST,            state->depth_test);
 }
 
 static void
@@ -173,6 +275,7 @@ clutter_md2_paint (ClutterActor *self)
   guchar *vertices_a, *vertices_b;
   guchar *gl_command;
   float scale;
+  ClutterMD2State state;
   
   clutter_actor_get_geometry (self, &geom);
 
@@ -193,15 +296,23 @@ clutter_md2_paint (ClutterActor *self)
   vertices_b = frame_b->vertices;
   gl_command = priv->gl_commands;
 
-  glPushAttrib (GL_ENABLE_BIT | GL_CURRENT_BIT
-		| GL_POLYGON_BIT | GL_TEXTURE_BIT);
+  clutter_md2_save_state (&state);
+
   glEnable (GL_DEPTH_TEST);
   glDisable (GL_BLEND);
   glDepthFunc (GL_LEQUAL);
   glBindTexture (GL_TEXTURE_2D, priv->textures[priv->current_skin]);
   glEnable (GL_TEXTURE_2D);
+#ifdef GL_TEXTURE_RECTANGLE_ARB
   glDisable (GL_TEXTURE_RECTANGLE_ARB);
+#endif
   glTexEnvi (GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+  glEnableClientState (GL_TEXTURE_COORD_ARRAY);
+  glEnableClientState (GL_NORMAL_ARRAY);
+  glEnableClientState (GL_VERTEX_ARRAY);
+  glDisableClientState (GL_COLOR_ARRAY);
+
+  clutter_md2_set_vertex_buffer (md2);
 
   glPushMatrix ();
 
@@ -227,18 +338,39 @@ clutter_md2_paint (ClutterActor *self)
   while (*(gint32 *) gl_command)
     {
       gint32 command_len = *(gint32 *) gl_command;
+      GLfloat *vp;
+      GLenum draw_mode;
+      int i;
 
       gl_command += sizeof (gint32);
 
       if (command_len < 0)
 	{
-	  glBegin (GL_TRIANGLE_FAN);
+	  draw_mode = GL_TRIANGLE_FAN;
 	  command_len = -command_len;
 	}
       else
-	glBegin (GL_TRIANGLE_STRIP);
+	draw_mode = GL_TRIANGLE_STRIP;
 
-      while (command_len-- > 0)
+      /* Make sure there's enough space in the vertex buffer */
+      if (command_len > priv->vertices_size)
+	{
+	  guint nsize = priv->vertices_size;
+	  do
+	    nsize *= 2;
+	  while (nsize < command_len);
+	  priv->vertices = g_realloc (priv->vertices,
+				      (priv->vertices_size = nsize)
+				      * CLUTTER_MD2_FLOATS_PER_VERTEX
+				      * sizeof (GLfloat));
+
+	  clutter_md2_set_vertex_buffer (md2);
+	}
+
+      vp = priv->vertices;
+
+      /* Fill the vertex buffer */
+      for (i = 0; i < command_len; i++)
 	{
 	  float s, t;
 	  int vertex_num;
@@ -250,19 +382,20 @@ clutter_md2_paint (ClutterActor *self)
 	  vertex_num = *(guint32 *) gl_command;
 	  gl_command += sizeof (guint32);
 
-	  glTexCoord2f (s, t);
+	  *(vp++) = s;
+	  *(vp++) = t;
 
 	  if (frame_a == frame_b)
 	    {
 	      guchar *vertex = vertices_a + vertex_num * 4;
 
-	      glNormal3fv (_clutter_md2_norms + vertex[3] * 3);
-	      glVertex3f (vertex[0] * frame_a->scale[0]
-			  + frame_a->translate[0],
-			  vertex[1] * frame_a->scale[1]
-			  + frame_a->translate[1],
-			  vertex[2] * frame_a->scale[2]
-			  + frame_a->translate[2]);
+	      memcpy (vp, _clutter_md2_norms + vertex[3] * 3,
+		      sizeof (float) * 3);
+	      vp += 3;
+
+	      *(vp++) = vertex[0] * frame_a->scale[0] + frame_a->translate[0];
+	      *(vp++) = vertex[1] * frame_a->scale[1] + frame_a->translate[1];
+	      *(vp++) = vertex[2] * frame_a->scale[2] + frame_a->translate[2];
 	    }
 	  else
 	    {
@@ -282,21 +415,22 @@ clutter_md2_paint (ClutterActor *self)
 		vertex_bp[2] * frame_b->scale[2] + frame_b->translate[2]
 	      };
 	      
-	      glNormal3f (norm_a[0] + (norm_b[0] - norm_a[0]) * interval,
-			  norm_a[1] + (norm_b[1] - norm_a[1]) * interval,
-			  norm_a[2] + (norm_b[2] - norm_a[2]) * interval);
-	      glVertex3f (vert_a[0] + (vert_b[0] - vert_a[0]) * interval,
-			  vert_a[1] + (vert_b[1] - vert_a[1]) * interval,
-			  vert_a[2] + (vert_b[2] - vert_a[2]) * interval);
+	      *(vp++) = norm_a[0] + (norm_b[0] - norm_a[0]) * interval;
+	      *(vp++) = norm_a[1] + (norm_b[1] - norm_a[1]) * interval;
+	      *(vp++) = norm_a[2] + (norm_b[2] - norm_a[2]) * interval;
+
+	      *(vp++) = vert_a[0] + (vert_b[0] - vert_a[0]) * interval;
+	      *(vp++) = vert_a[1] + (vert_b[1] - vert_a[1]) * interval;
+	      *(vp++) = vert_a[2] + (vert_b[2] - vert_a[2]) * interval;
 	    }
 	}
 
-      glEnd ();
+      glDrawArrays (draw_mode, 0, command_len);
     }
 
   glPopMatrix ();
 
-  glPopAttrib ();
+  clutter_md2_restore_state (&state);
 }
 
 gint
@@ -797,8 +931,10 @@ clutter_md2_add_skin (ClutterMD2 *md2, const gchar *filename, GError **error)
       
   glGenTextures (1, priv->textures + priv->num_skins);
   glBindTexture (GL_TEXTURE_2D, priv->textures[priv->num_skins++]);
+#ifdef GL_UNPACK_ROW_LENGTH
   glPixelStorei (GL_UNPACK_ROW_LENGTH,
 		 gdk_pixbuf_get_rowstride (pixbuf) / bpp);
+#endif
   glPixelStorei (GL_UNPACK_ALIGNMENT, alignment);
 
   glTexParameterf (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
