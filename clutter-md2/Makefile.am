@@ -17,20 +17,20 @@ LDADD =                                                 \
 	-export-symbols-regex "^clutter_md2"            \
 	-rpath $(libdir)
 
-# please, keep this sorted alphabetically
 source_h =					          \
 	$(srcdir)/clutter-md2.h                           \
 	$(top_builddir)/clutter-md2/clutter-md2-version.h \
-	$(srcdir)/clutter-behaviour-md2-animate.h
+	$(srcdir)/clutter-behaviour-md2-animate.h         \
+	$(srcdir)/clutter-md2-data.h
 
 source_h_priv =                         \
 	clutter-md2-norms.h
 
-# please, keep this sorted alphabetically
 source_c =                              \
 	clutter-md2.c                   \
 	clutter-behaviour-md2-animate.c \
-	clutter-md2-norms.c
+	clutter-md2-norms.c             \
+	clutter-md2-data.c
 
 libclutter_md2_@CLUTTER_MD2_API_VERSION@_la_LIBADD = \
   $(CLUTTER_MD2_LIBS)

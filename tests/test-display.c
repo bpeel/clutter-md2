@@ -136,6 +136,7 @@ int
 main (int argc, char **argv)
 {
   ClutterActor *stage, *md2, *scroll_group, *grabber;
+  ClutterMD2Data *data;
   GError *error = NULL;
   ClutterAlpha *alpha;
   ClutterTimeline *tl;
@@ -163,18 +164,22 @@ main (int argc, char **argv)
 			  - GRABBER_WIDTH - BUTTON_WIDTH - BUTTON_GAP * 2,
 			  clutter_actor_get_height (stage));
 
-  if (!clutter_md2_load (CLUTTER_MD2 (md2), argv[1], &error))
+  data = clutter_md2_data_new ();
+
+  if (!clutter_md2_data_load (data, argv[1], &error))
     {
       fprintf (stderr, "%s\n", error->message);
       g_error_free (error);
     }
 
   for (i = 2; i < argc; i++)
-    if (!clutter_md2_add_skin (CLUTTER_MD2 (md2), argv[i], &error))
+    if (!clutter_md2_data_add_skin (data, argv[i], &error))
       {
 	fprintf (stderr, "%s\n", error->message);
 	g_error_free (error);
       }
+
+  clutter_md2_set_data (CLUTTER_MD2 (md2), data);
 
   tl = clutter_timeline_new (360, 60);
   clutter_timeline_start (tl);

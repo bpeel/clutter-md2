@@ -28,6 +28,7 @@
 
 #include <glib-object.h>
 #include <clutter/clutter-actor.h>
+#include <clutter-md2/clutter-md2-data.h>
 
 G_BEGIN_DECLS
 
@@ -43,14 +44,6 @@ G_BEGIN_DECLS
   (G_TYPE_CHECK_CLASS_TYPE ((klass), CLUTTER_TYPE_MD2))
 #define CLUTTER_MD2_GET_CLASS(obj)					\
   (G_TYPE_INSTANCE_GET_CLASS ((obj), CLUTTER_TYPE_MD2, ClutterMD2Class))
-
-typedef enum {
-  CLUTTER_MD2_ERROR_INVALID_FILE,
-  CLUTTER_MD2_ERROR_BAD_VERSION
-} ClutterMD2Error;
-
-#define CLUTTER_MD2_ERROR (clutter_md2_error_quark ())
-GQuark clutter_md2_error_quark (void);
 
 typedef struct _ClutterMD2 ClutterMD2;
 typedef struct _ClutterMD2Private ClutterMD2Private;
@@ -72,13 +65,8 @@ GType clutter_md2_get_type (void) G_GNUC_CONST;
 
 ClutterActor *clutter_md2_new (void);
 
-gboolean clutter_md2_load (ClutterMD2   *md2,
-			   const gchar  *filename,
-			   GError      **error);
-
-gboolean clutter_md2_add_skin (ClutterMD2  *md2,
-			       const gchar *filename,
-			       GError     **error);
+ClutterMD2Data *clutter_md2_get_data (ClutterMD2 *md2);
+void clutter_md2_set_data (ClutterMD2 *md2, ClutterMD2Data *data);
 
 gint clutter_md2_get_n_skins (ClutterMD2 *md2);
 gint clutter_md2_get_current_skin (ClutterMD2 *md2);
