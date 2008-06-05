@@ -68,6 +68,9 @@ struct _ClutterMD2Data
 struct _ClutterMD2DataClass
 {
   GInitiallyUnownedClass parent_class;
+
+  /* signals */
+  void (* data_changed) (ClutterMD2Data *data);
 };
 
 GType clutter_md2_data_get_type (void) G_GNUC_CONST;

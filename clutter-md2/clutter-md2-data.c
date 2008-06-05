@@ -142,6 +142,14 @@ enum
     CLUTTER_MD2_DATA_HEADER_COUNT
   };
 
+enum
+  {
+    DATA_CHANGED,
+    LAST_SIGNAL
+  };
+
+static guint data_signals[LAST_SIGNAL] = { 0, };
+
 GQuark
 clutter_md2_data_error_quark (void)
 {
@@ -156,6 +164,15 @@ clutter_md2_data_class_init (ClutterMD2DataClass *klass)
   object_class->finalize = clutter_md2_data_finalize;
 
   g_type_class_add_private (klass, sizeof (ClutterMD2DataPrivate));
+
+  data_signals[DATA_CHANGED] =
+    g_signal_new ("data-changed",
+		  G_TYPE_FROM_CLASS (object_class),
+		  G_SIGNAL_RUN_FIRST,
+		  G_STRUCT_OFFSET (ClutterMD2DataClass, data_changed),
+		  NULL, NULL,
+		  g_cclosure_marshal_VOID__VOID,
+		  G_TYPE_NONE, 0);
 }
 
 static void
@@ -1075,7 +1092,7 @@ clutter_md2_data_load (ClutterMD2Data *data,
   if (!ret)
     clutter_md2_data_free_data (data);
 
-  /* FIXME : fire data changed signal */
+  g_signal_emit (data, data_signals[DATA_CHANGED], 0);
 
   return ret;
 }

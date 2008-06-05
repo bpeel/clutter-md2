@@ -47,6 +47,8 @@ struct _ClutterMD2Private
   int current_frame_a, current_frame_b;
   float current_frame_interval;
   int current_skin;
+
+  guint data_changed_handler;
   
   ClutterMD2Data *data;
 };
@@ -221,15 +223,23 @@ clutter_md2_get_frame_name (ClutterMD2 *md2, gint frame_num)
 }
 
 static void
+clutter_md2_forget_data (ClutterMD2 *md2)
+{
+  if (md2->priv->data)
+    {
+      g_signal_handler_disconnect (md2->priv->data,
+				   md2->priv->data_changed_handler);
+      g_object_unref (md2->priv->data);
+      md2->priv->data = NULL;
+    }
+}
+
+static void
 clutter_md2_dispose (GObject *self)
 {
   ClutterMD2 *md2 = CLUTTER_MD2 (self);
 
-  if (md2->priv->data)
-    {
-      g_object_unref (md2->priv->data);
-      md2->priv->data = NULL;
-    }
+  clutter_md2_forget_data (md2);
 
   md2->priv->current_frame_a = 0;
   md2->priv->current_frame_b = 0;
@@ -245,22 +255,40 @@ clutter_md2_get_data (ClutterMD2 *md2)
   return md2->priv->data;
 }
 
+static void
+clutter_md2_check_current_values (ClutterMD2 *md2)
+{
+  ClutterMD2Private *priv = md2->priv;
+  int num_frames = clutter_md2_get_n_frames (md2);
+  int num_skins = clutter_md2_get_n_skins (md2);
+
+  if (priv->current_frame_a >= num_frames
+      || priv->current_frame_b >= num_frames)
+    priv->current_frame_b = priv->current_frame_a = 0;
+  if (priv->current_skin >= num_skins)
+    priv->current_skin = 0;
+}
+
 void
 clutter_md2_set_data (ClutterMD2 *md2, ClutterMD2Data *data)
 {
-  ClutterMD2Data *old_data;
-
   g_return_if_fail (CLUTTER_IS_MD2 (md2));
   g_return_if_fail (data == NULL || CLUTTER_IS_MD2_DATA (data));
 
-  old_data = md2->priv->data;
-
-  md2->priv->data = data;
   if (data)
     g_object_ref_sink (data);
 
-  if (old_data)
-    g_object_unref (old_data);
+  clutter_md2_forget_data (md2);
+
+  md2->priv->data = data;
+
+  if (data)
+    md2->priv->data_changed_handler
+      = g_signal_connect_swapped (data, "data-changed",
+				  G_CALLBACK (clutter_md2_check_current_values),
+				  md2);
+
+  clutter_md2_check_current_values (md2);
 
   clutter_actor_queue_redraw (CLUTTER_ACTOR (md2));
 }
