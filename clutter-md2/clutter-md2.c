@@ -256,7 +256,7 @@ clutter_md2_get_data (ClutterMD2 *md2)
 }
 
 static void
-clutter_md2_check_current_values (ClutterMD2 *md2)
+clutter_md2_on_data_changed (ClutterMD2 *md2)
 {
   ClutterMD2Private *priv = md2->priv;
   int num_frames = clutter_md2_get_n_frames (md2);
@@ -267,6 +267,8 @@ clutter_md2_check_current_values (ClutterMD2 *md2)
     priv->current_frame_b = priv->current_frame_a = 0;
   if (priv->current_skin >= num_skins)
     priv->current_skin = 0;
+
+  clutter_actor_queue_redraw (CLUTTER_ACTOR (md2));
 }
 
 void
@@ -285,10 +287,8 @@ clutter_md2_set_data (ClutterMD2 *md2, ClutterMD2Data *data)
   if (data)
     md2->priv->data_changed_handler
       = g_signal_connect_swapped (data, "data-changed",
-				  G_CALLBACK (clutter_md2_check_current_values),
+				  G_CALLBACK (clutter_md2_on_data_changed),
 				  md2);
 
-  clutter_md2_check_current_values (md2);
-
-  clutter_actor_queue_redraw (CLUTTER_ACTOR (md2));
+  clutter_md2_on_data_changed (md2);
 }
