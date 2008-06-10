@@ -2,12 +2,22 @@
 #include <clutter-md2/clutter-md2.h>
 #include <clutter-md2/clutter-behaviour-md2-animate.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define BUTTON_WIDTH   200
 #define BUTTON_HEIGHT  30
 #define BUTTON_GAP     5
 #define GRABBER_WIDTH  15
 #define GRABBER_HEIGHT 20
+
+#define ANGLE_CONTROL_WIDTH  40
+#define ANGLE_CONTROL_HEIGHT 25
+
+static const char * const angle_labels[]
+= { "0", "90", "180", "270", "Spin" };
+#define ANGLE_LABEL_COUNT G_N_ELEMENTS (angle_labels)
+
+#define ANGLE_FONT "Sans 10"
 
 typedef struct _CallbackData CallbackData;
 typedef struct _DisplayState DisplayState;
@@ -23,6 +33,10 @@ struct _DisplayState
 {
   ClutterActor *md2;
   ClutterBehaviour *anim;
+
+  int axis_angles[3];
+  ClutterActor *angle_markers[3];
+  ClutterActor *angle_labels[ANGLE_LABEL_COUNT * 3];
 };
 
 struct _GrabberData
@@ -132,15 +146,124 @@ on_grabber_motion (ClutterActor *actor, ClutterMotionEvent *event,
   return FALSE;
 }
 
+static gboolean
+on_angle_button (ClutterActor *button, ClutterButtonEvent *event,
+		 DisplayState *state)
+{
+  int axis, angle;
+  int md2_width = clutter_actor_get_width (state->md2);
+  int md2_height = clutter_actor_get_height (state->md2);
+
+  for (axis = 0; axis < 3; axis++)
+    for (angle = 0; angle < ANGLE_LABEL_COUNT; angle++)
+      if (state->angle_labels[axis * ANGLE_LABEL_COUNT + angle] == button)
+	{
+	  state->axis_angles[axis] = angle;
+	  clutter_actor_set_position (state->angle_markers[axis],
+				      (angle + 1) * ANGLE_CONTROL_WIDTH,
+				      axis * ANGLE_CONTROL_HEIGHT);
+
+	  if (angle < ANGLE_LABEL_COUNT - 1)
+	    clutter_actor_set_rotation (state->md2,
+					CLUTTER_X_AXIS + axis,
+					angle * 90.0,
+					md2_width / 2, md2_height / 2, 0);
+	  
+	  return TRUE;
+	}
+
+  return FALSE;
+}
+
+static ClutterActor *
+make_angle_buttons (DisplayState *state)
+{
+  ClutterActor *group, *background;
+  static const ClutterColor background_color = { 5, 139, 192, 255 };
+  static const ClutterColor marker_color = { 0, 0, 255, 255 };
+  int axis;
+
+  group = clutter_group_new ();
+
+  /* Make a blue background for the angle buttons */
+  background = clutter_rectangle_new_with_color (&background_color);
+  clutter_actor_set_size (background,
+			  ANGLE_CONTROL_WIDTH * (ANGLE_LABEL_COUNT + 1),
+			  ANGLE_CONTROL_HEIGHT * 3);
+  clutter_container_add (CLUTTER_CONTAINER (group), background, NULL);
+  
+  /* Make a button to the set angle of rotation for each axis */
+  for (axis = 0; axis < 3; axis++)
+    {
+      ClutterActor *label;
+      char axis_text[2] = { axis + 'X', 0 };
+      int angle;
+
+      label = clutter_label_new_with_text (ANGLE_FONT, axis_text);
+      clutter_label_set_alignment (CLUTTER_LABEL (label), PANGO_ALIGN_CENTER);
+      clutter_actor_set_position (label, 0, axis * ANGLE_CONTROL_HEIGHT);
+      clutter_actor_set_size (label, ANGLE_CONTROL_WIDTH, ANGLE_CONTROL_HEIGHT);
+
+      state->angle_markers[axis]
+	= clutter_rectangle_new_with_color (&marker_color);
+      clutter_actor_set_position (state->angle_markers[axis],
+				  ANGLE_CONTROL_WIDTH,
+				  ANGLE_CONTROL_HEIGHT * axis);
+      clutter_actor_set_size (state->angle_markers[axis],
+			      ANGLE_CONTROL_WIDTH,
+			      ANGLE_CONTROL_HEIGHT);
+
+      clutter_container_add (CLUTTER_CONTAINER (group),
+			     state->angle_markers[axis],
+			     label,
+			     NULL);
+
+      for (angle = 0; angle < ANGLE_LABEL_COUNT; angle++)
+	{
+	  label = clutter_label_new_with_text (ANGLE_FONT, angle_labels[angle]);
+	  clutter_label_set_alignment (CLUTTER_LABEL (label),
+				       PANGO_ALIGN_CENTER);
+	  clutter_actor_set_position (label, ANGLE_CONTROL_WIDTH * (angle + 1),
+				      ANGLE_CONTROL_HEIGHT * axis);
+	  clutter_actor_set_size (label, ANGLE_CONTROL_WIDTH,
+				  ANGLE_CONTROL_HEIGHT);
+	  clutter_container_add (CLUTTER_CONTAINER (group), label, NULL);
+
+	  clutter_actor_set_reactive (label, TRUE);
+
+	  g_signal_connect (label, "button-press-event",
+			    G_CALLBACK (on_angle_button), state);
+
+	  state->angle_labels[axis * ANGLE_LABEL_COUNT + angle] = label;
+	}
+    }
+
+  return group;
+}
+
+static void
+on_rotate_frame (ClutterTimeline *tl, gint frame_num, DisplayState *state)
+{
+  int axis;
+  int md2_width = clutter_actor_get_width (state->md2);
+  int md2_height = clutter_actor_get_height (state->md2);
+
+  for (axis = 0; axis < 3; axis++)
+    if (state->axis_angles[axis] == ANGLE_LABEL_COUNT - 1)
+      clutter_actor_set_rotation (state->md2,
+				  CLUTTER_X_AXIS + axis,
+				  frame_num,
+				  md2_width / 2, md2_height / 2, 0);
+}
+
 int
 main (int argc, char **argv)
 {
-  ClutterActor *stage, *md2, *scroll_group, *grabber;
+  ClutterActor *stage, *md2, *scroll_group, *grabber, *angle_buttons;
   ClutterMD2Data *data;
   GError *error = NULL;
   ClutterAlpha *alpha;
   ClutterTimeline *tl;
-  ClutterBehaviour *b;
   GrabberData grabber_data;
   DisplayState state;
   int i;
@@ -162,7 +285,8 @@ main (int argc, char **argv)
   md2 = clutter_md2_new ();
   clutter_actor_set_size (md2, clutter_actor_get_width (stage)
 			  - GRABBER_WIDTH - BUTTON_WIDTH - BUTTON_GAP * 2,
-			  clutter_actor_get_height (stage));
+			  clutter_actor_get_height (stage)
+			  - ANGLE_CONTROL_HEIGHT * 3);
 
   data = clutter_md2_data_new ();
 
@@ -185,15 +309,7 @@ main (int argc, char **argv)
   clutter_timeline_start (tl);
   clutter_timeline_set_loop (tl, TRUE);
 
-  alpha = clutter_alpha_new_full (tl, CLUTTER_ALPHA_RAMP_INC, NULL, NULL);
-  
-  b = clutter_behaviour_rotate_new (alpha, CLUTTER_Y_AXIS,
-				    CLUTTER_ROTATE_CW, 0, 360);
-  clutter_behaviour_rotate_set_center (CLUTTER_BEHAVIOUR_ROTATE (b),
-				       clutter_actor_get_width (md2) / 2,
-				       clutter_actor_get_height (md2) / 2,
-				       0);
-  clutter_behaviour_apply (b, md2);
+  g_signal_connect (tl, "new-frame", G_CALLBACK (on_rotate_frame), &state);
 
   clutter_container_add (CLUTTER_CONTAINER (stage), md2, NULL);
 
@@ -203,6 +319,8 @@ main (int argc, char **argv)
   state.anim = clutter_behaviour_md2_animate_new (alpha, 0, 0);
   clutter_behaviour_apply (state.anim, md2);
   state.md2 = md2;
+
+  memset (state.axis_angles, 0, sizeof (int) * 3);
 
   scroll_group = clutter_group_new ();
 
@@ -262,6 +380,12 @@ main (int argc, char **argv)
 		    G_CALLBACK (on_grabber_button_release), &grabber_data);
   g_signal_connect (G_OBJECT (grabber), "motion-event",
 		    G_CALLBACK (on_grabber_motion), &grabber_data);
+
+  angle_buttons = make_angle_buttons (&state);
+  clutter_actor_set_position (angle_buttons, 0,
+			      clutter_actor_get_height (stage)
+			      - clutter_actor_get_height (angle_buttons));
+  clutter_container_add (CLUTTER_CONTAINER (stage), angle_buttons, NULL);
 
   clutter_actor_show (stage);
 
