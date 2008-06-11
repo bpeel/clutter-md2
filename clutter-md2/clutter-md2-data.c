@@ -974,6 +974,7 @@ clutter_md2_data_free_data (ClutterMD2Data *data)
       g_free (priv->textures);
 
       priv->textures = NULL;
+      priv->textures_size = 0;
     }
 
   priv->num_skins = 0;

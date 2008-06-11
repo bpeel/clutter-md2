@@ -294,6 +294,7 @@ main (int argc, char **argv)
     {
       fprintf (stderr, "%s\n", error->message);
       g_error_free (error);
+      error = NULL;
     }
 
   for (i = 2; i < argc; i++)
@@ -301,6 +302,7 @@ main (int argc, char **argv)
       {
 	fprintf (stderr, "%s\n", error->message);
 	g_error_free (error);
+	error = NULL;
       }
 
   clutter_md2_set_data (CLUTTER_MD2 (md2), data);
