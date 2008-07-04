@@ -1,4 +1,5 @@
 #include <clutter/clutter.h>
+#include <clutter/pangoclutter.h>
 #include <clutter-md2/clutter-md2.h>
 #include <clutter-md2/clutter-behaviour-md2-animate.h>
 #include <stdlib.h>
@@ -23,12 +24,6 @@ typedef struct _CallbackData CallbackData;
 typedef struct _DisplayState DisplayState;
 typedef struct _GrabberData GrabberData;
 
-struct _CallbackData
-{
-  int frame_num;
-  DisplayState *state;
-};
-
 struct _DisplayState
 {
   ClutterActor *md2;
@@ -37,36 +32,65 @@ struct _DisplayState
   int axis_angles[3];
   ClutterActor *angle_markers[3];
   ClutterActor *angle_labels[ANGLE_LABEL_COUNT * 3];
-};
 
-struct _GrabberData
-{
   ClutterActor *stage;
   gboolean is_grabbed;
-  ClutterActor *scroll_group;
+  ClutterActor *frame_display;
   int grab_x, grab_y;
+  int grabber_pos, max_grabber_pos;
+
+  PangoContext *pango_context;
 };
 
-static gboolean
-on_frame_button_press (ClutterActor *rect, ClutterButtonEvent *event,
-		       CallbackData *data)
+static const ClutterColor bg_color = { 5, 139, 192, 255 };
+
+static gint
+get_frame_list_start (const DisplayState *data)
 {
+  int n_frames = clutter_md2_get_n_frames (CLUTTER_MD2 (data->md2));
+  int stage_height = clutter_actor_get_height (data->stage);
+  int max_start;
+
+  max_start = n_frames * (BUTTON_HEIGHT + BUTTON_GAP) - stage_height;
+  if (max_start < 0)
+    max_start = 0;
+
+  return data->grabber_pos * max_start / data->max_grabber_pos;
+}
+
+static gboolean
+on_frame_list_click (ClutterActor *frame_list, ClutterButtonEvent *event,
+		     DisplayState *data)
+{
+  int n_frames = clutter_md2_get_n_frames (CLUTTER_MD2 (data->md2));
+  int start = get_frame_list_start (data);
+  int ypos, frame_num;
   int frame_start, frame_end;
   ClutterBehaviourMD2Animate *anim_md2
-    = CLUTTER_BEHAVIOUR_MD2_ANIMATE (data->state->anim);
-  ClutterAlpha *alpha = clutter_behaviour_get_alpha (data->state->anim);
+    = CLUTTER_BEHAVIOUR_MD2_ANIMATE (data->anim);
+  ClutterAlpha *alpha = clutter_behaviour_get_alpha (data->anim);
   ClutterTimeline *tl = clutter_alpha_get_timeline (alpha);
+
+  ypos = start + event->y;
+  
+  if (ypos % (BUTTON_HEIGHT + BUTTON_GAP) >= BUTTON_HEIGHT)
+    return FALSE;
+
+  frame_num = ypos / (BUTTON_HEIGHT + BUTTON_GAP);
+
+  if (frame_num < 0 || frame_num >= n_frames)
+    return FALSE;
 
   clutter_behaviour_md2_animate_get_bounds (anim_md2, &frame_start, &frame_end);
 
   if (event->button == 3)
-    frame_end = data->frame_num;
+    frame_end = frame_num;
   else
     {
       if (frame_start == frame_end)
-	frame_start = frame_end = data->frame_num;
+	frame_start = frame_end = frame_num;
       else
-	frame_start = data->frame_num;
+	frame_start = frame_num;
     }
 
   clutter_behaviour_md2_animate_set_bounds (anim_md2, frame_start, frame_end);
@@ -81,15 +105,60 @@ on_frame_button_press (ClutterActor *rect, ClutterButtonEvent *event,
       clutter_timeline_start (tl);
     }
 
-  clutter_md2_set_current_frame (CLUTTER_MD2 (data->state->md2),
-				 frame_start);
+  clutter_md2_set_current_frame (CLUTTER_MD2 (data->md2), frame_start);
 
   return TRUE;
 }
 
+static void
+on_frame_list_paint (ClutterActor *actor, DisplayState *data)
+{
+  int n_frames = clutter_md2_get_n_frames (CLUTTER_MD2 (data->md2));
+  int stage_height = clutter_actor_get_height (data->stage);
+  int start, ypos, frame_num;
+  PangoFontDescription *font_description;
+  ClutterColor black = { 0x00, 0x00, 0x00, 0xff };
+
+  start = get_frame_list_start (data);
+  frame_num = start / (BUTTON_HEIGHT + BUTTON_GAP);
+  ypos = -(start % (BUTTON_HEIGHT + BUTTON_GAP));
+
+  font_description = pango_font_description_new ();
+  pango_font_description_set_family (font_description, "Sans 10");
+
+  while (frame_num < n_frames && ypos < stage_height)
+    {
+      PangoLayout *layout;
+      const gchar *frame_name
+	= clutter_md2_get_frame_name (CLUTTER_MD2 (data->md2), frame_num);
+      PangoRectangle extents;
+
+      cogl_color (&bg_color);
+      cogl_rectangle (0, ypos, BUTTON_WIDTH, BUTTON_HEIGHT);
+
+      layout = pango_layout_new (data->pango_context);
+
+      pango_layout_set_text (layout, frame_name, -1);
+      pango_layout_set_font_description (layout, font_description);
+      pango_layout_get_pixel_extents (layout, NULL, &extents);
+      pango_clutter_render_layout (layout,
+				   BUTTON_WIDTH / 2 - extents.width / 2,
+				   ypos + BUTTON_HEIGHT / 2
+				   - extents.height / 2,
+				   &black, 0);
+
+      g_object_unref (layout);
+
+      ypos += BUTTON_HEIGHT + BUTTON_GAP;
+      frame_num++;
+    }
+
+  pango_font_description_free (font_description);
+}
+
 static gboolean
 on_grabber_button_press (ClutterActor *actor, ClutterButtonEvent *event,
-			 GrabberData *data)
+			 DisplayState *data)
 {
   if (!data->is_grabbed)
     {
@@ -104,7 +173,7 @@ on_grabber_button_press (ClutterActor *actor, ClutterButtonEvent *event,
 
 static gboolean
 on_grabber_button_release (ClutterActor *actor, ClutterButtonEvent *event,
-			   GrabberData *data)
+			   DisplayState *data)
 {
   if (data->is_grabbed)
     {
@@ -117,28 +186,18 @@ on_grabber_button_release (ClutterActor *actor, ClutterButtonEvent *event,
 
 static gboolean
 on_grabber_motion (ClutterActor *actor, ClutterMotionEvent *event,
-		   GrabberData *data)
+		   DisplayState *data)
 {
   if (data->is_grabbed)
     {
-      int max_grabber_pos
-	= clutter_actor_get_height (data->stage) - GRABBER_HEIGHT;
-      int grabber_pos = event->y - data->grab_y;
-      int min_group_pos = clutter_actor_get_height (data->stage)
-	- clutter_actor_get_height (data->scroll_group);
+      data->grabber_pos = event->y - data->grab_y;
 
-      if (grabber_pos < 0)
-	grabber_pos = 0;
-      else if (grabber_pos > max_grabber_pos)
-	grabber_pos = max_grabber_pos;
+      if (data->grabber_pos < 0)
+	data->grabber_pos = 0;
+      else if (data->grabber_pos > data->max_grabber_pos)
+	data->grabber_pos = data->max_grabber_pos;
 
-      if (min_group_pos > 0)
-	min_group_pos = 0;
-
-      clutter_actor_set_y (actor, grabber_pos);
-
-      clutter_actor_set_y (data->scroll_group,
-			   grabber_pos * min_group_pos / max_grabber_pos);
+      clutter_actor_set_y (actor, data->grabber_pos);
 
       return TRUE;
     }
@@ -259,16 +318,15 @@ on_rotate_frame (ClutterTimeline *tl, gint frame_num, DisplayState *state)
 int
 main (int argc, char **argv)
 {
-  ClutterActor *stage, *md2, *scroll_group, *grabber, *angle_buttons;
+  ClutterActor *stage, *md2, *grabber, *angle_buttons;
   ClutterMD2Data *data;
   GError *error = NULL;
   ClutterAlpha *alpha;
   ClutterTimeline *tl;
-  GrabberData grabber_data;
   DisplayState state;
   int i;
-  static const ClutterColor stage_color = { 0, 0, 0, 0 };
-  static const ClutterColor bg_color = { 5, 139, 192, 255 };
+  PangoFontMap *font_map;
+  static const ClutterColor transparent = { 0, 0, 0, 0 };
 
   clutter_init (&argc, &argv);
 
@@ -280,7 +338,7 @@ main (int argc, char **argv)
 
   stage = clutter_stage_get_default ();
 
-  clutter_stage_set_color (CLUTTER_STAGE (stage), &stage_color);
+  clutter_stage_set_color (CLUTTER_STAGE (stage), &transparent);
 
   md2 = clutter_md2_new ();
   clutter_actor_set_size (md2, clutter_actor_get_width (stage)
@@ -324,44 +382,18 @@ main (int argc, char **argv)
 
   memset (state.axis_angles, 0, sizeof (int) * 3);
 
-  scroll_group = clutter_group_new ();
-
-  /* Make a button for each frame */
-  for (i = 0; i < clutter_md2_get_n_frames (CLUTTER_MD2 (md2)); i++)
-    {
-      ClutterActor *group, *rect, *label;
-      const gchar *frame_name;
-      CallbackData *data = g_new (CallbackData, 1);
-
-      data->state = &state;
-      data->frame_num = i;
-
-      group = clutter_group_new ();
-
-      rect = clutter_rectangle_new_with_color (&bg_color);
-      clutter_actor_set_size (rect, BUTTON_WIDTH, BUTTON_HEIGHT);
-      clutter_actor_set_reactive (rect, TRUE);
-
-      frame_name = clutter_md2_get_frame_name (CLUTTER_MD2 (md2), i);
-      label = clutter_label_new_with_text ("Sans 10", frame_name);
-      clutter_actor_set_position (label, BUTTON_WIDTH / 2
-				  - clutter_actor_get_width (label) / 2,
-				  BUTTON_HEIGHT / 2
-				  - clutter_actor_get_height (label) / 2);
-
-      clutter_actor_set_position (group, 0, i * (BUTTON_HEIGHT + BUTTON_GAP));
-
-      clutter_container_add (CLUTTER_CONTAINER (group), rect, label, NULL);
-      clutter_container_add (CLUTTER_CONTAINER (scroll_group), group, NULL);
-
-      g_signal_connect_data (G_OBJECT (rect), "button-press-event",
-			     G_CALLBACK (on_frame_button_press), data,
-			     (GClosureNotify) g_free, 0);
-    }
-
-  clutter_actor_set_position (scroll_group,
+  state.frame_display = clutter_rectangle_new_with_color (&transparent);
+  clutter_actor_set_position (state.frame_display,
 			      clutter_actor_get_width (stage) - GRABBER_WIDTH
 			      - BUTTON_GAP - BUTTON_WIDTH, 0);
+  clutter_actor_set_size (state.frame_display, BUTTON_WIDTH,
+			  clutter_actor_get_height (stage));
+  clutter_actor_set_reactive (state.frame_display, TRUE);
+  
+  g_signal_connect (state.frame_display, "button-press-event",
+		    G_CALLBACK (on_frame_list_click), &state);
+  g_signal_connect (state.frame_display, "paint",
+		    G_CALLBACK (on_frame_list_paint), &state);
 
   grabber = clutter_rectangle_new_with_color (&bg_color);
   clutter_actor_set_size (grabber, GRABBER_WIDTH, GRABBER_HEIGHT);
@@ -370,18 +402,19 @@ main (int argc, char **argv)
   clutter_actor_set_reactive (grabber, TRUE);
 
   clutter_container_add (CLUTTER_CONTAINER (stage),
-			 scroll_group, grabber, NULL);
+			 state.frame_display, grabber, NULL);
 
-  grabber_data.stage = stage;
-  grabber_data.is_grabbed = FALSE;
-  grabber_data.scroll_group = scroll_group;
+  state.stage = stage;
+  state.is_grabbed = FALSE;
+  state.grabber_pos = 0;
+  state.max_grabber_pos = clutter_actor_get_height (stage) - GRABBER_HEIGHT;
 
   g_signal_connect (G_OBJECT (grabber), "button-press-event", 
-		    G_CALLBACK (on_grabber_button_press), &grabber_data);
+		    G_CALLBACK (on_grabber_button_press), &state);
   g_signal_connect (G_OBJECT (grabber), "button-release-event",
-		    G_CALLBACK (on_grabber_button_release), &grabber_data);
+		    G_CALLBACK (on_grabber_button_release), &state);
   g_signal_connect (G_OBJECT (grabber), "motion-event",
-		    G_CALLBACK (on_grabber_motion), &grabber_data);
+		    G_CALLBACK (on_grabber_motion), &state);
 
   angle_buttons = make_angle_buttons (&state);
   clutter_actor_set_position (angle_buttons, 0,
@@ -389,9 +422,16 @@ main (int argc, char **argv)
 			      - clutter_actor_get_height (angle_buttons));
   clutter_container_add (CLUTTER_CONTAINER (stage), angle_buttons, NULL);
 
+  font_map = pango_clutter_font_map_new ();
+  state.pango_context
+    = pango_clutter_font_map_create_context (PANGO_CLUTTER_FONT_MAP (font_map));
+
   clutter_actor_show (stage);
 
   clutter_main ();
+
+  g_object_unref (state.pango_context);
+  g_object_unref (font_map);
 
   return 0;
 }
