@@ -206,6 +206,16 @@ on_grabber_motion (ClutterActor *actor, ClutterMotionEvent *event,
 }
 
 static gboolean
+on_key_press (ClutterActor *stage, ClutterKeyEvent *event, gpointer data)
+{
+  if (event->keyval == CLUTTER_q || event->keyval == CLUTTER_Q
+      || event->keyval == CLUTTER_Escape)
+    clutter_main_quit ();
+
+  return FALSE;
+}
+
+static gboolean
 on_angle_button (ClutterActor *button, ClutterButtonEvent *event,
 		 DisplayState *state)
 {
@@ -338,6 +348,9 @@ main (int argc, char **argv)
 
   stage = clutter_stage_get_default ();
 
+  if (getenv ("FULLSCREEN"))
+    clutter_stage_fullscreen (CLUTTER_STAGE (stage));
+
   clutter_stage_set_color (CLUTTER_STAGE (stage), &transparent);
 
   md2 = clutter_md2_new ();
@@ -415,6 +428,8 @@ main (int argc, char **argv)
 		    G_CALLBACK (on_grabber_button_release), &state);
   g_signal_connect (G_OBJECT (grabber), "motion-event",
 		    G_CALLBACK (on_grabber_motion), &state);
+  g_signal_connect (G_OBJECT (stage), "key-press-event",
+		    G_CALLBACK (on_key_press), NULL);
 
   angle_buttons = make_angle_buttons (&state);
   clutter_actor_set_position (angle_buttons, 0,
