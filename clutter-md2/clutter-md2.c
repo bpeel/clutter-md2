@@ -37,10 +37,20 @@
 #define CLUTTER_MD2_GET_PRIVATE(obj) \
   (G_TYPE_INSTANCE_GET_PRIVATE ((obj), CLUTTER_TYPE_MD2, ClutterMD2Private))
 
+#define CLUTTER_MD2_PREFERRED_SIZE 100
+
 G_DEFINE_TYPE (ClutterMD2, clutter_md2, CLUTTER_TYPE_ACTOR);
 
 static void clutter_md2_paint (ClutterActor *self);
 static void clutter_md2_dispose (GObject *self);
+static void clutter_md2_get_preferred_width (ClutterActor *self,
+					     ClutterUnit   for_height,
+					     ClutterUnit  *min_width_p,
+					     ClutterUnit  *natural_width_p);
+static void clutter_md2_get_preferred_height (ClutterActor *self,
+					      ClutterUnit   for_width,
+					      ClutterUnit  *min_height_p,
+					      ClutterUnit  *natural_height_p);
 
 struct _ClutterMD2Private
 {
@@ -60,6 +70,8 @@ clutter_md2_class_init (ClutterMD2Class *klass)
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
   actor_class->paint = clutter_md2_paint;
+  actor_class->get_preferred_width = clutter_md2_get_preferred_width;
+  actor_class->get_preferred_height = clutter_md2_get_preferred_height;
 
   object_class->dispose = clutter_md2_dispose;
 
@@ -92,7 +104,7 @@ clutter_md2_paint (ClutterActor *self)
   ClutterMD2Private *priv = md2->priv;
   ClutterGeometry geom;
   
-  clutter_actor_get_geometry (self, &geom);
+  clutter_actor_get_allocation_geometry (self, &geom);
 
   if (priv->data == NULL)
     return;
@@ -103,6 +115,68 @@ clutter_md2_paint (ClutterActor *self)
 			   priv->current_frame_interval,
 			   priv->current_skin,
 			   &geom);
+}
+
+static void
+clutter_md2_get_preferred_width (ClutterActor *self,
+				 ClutterUnit   for_height,
+				 ClutterUnit  *min_width_p,
+				 ClutterUnit  *natural_width_p)
+{
+  ClutterMD2Private *priv = CLUTTER_MD2 (self)->priv;
+
+  /* There is no minimum size we can render at */
+  if (min_width_p)
+    *min_width_p = 0;
+
+  if (natural_width_p)
+    {
+      /* If this is a width-for-height request then return the width
+	 that would maintain the aspect ratio */
+      if (for_height >= 0 && priv->data)
+	{
+	  ClutterMD2DataExtents extents;
+
+	  clutter_md2_data_get_extents (priv->data, &extents);
+
+	  *natural_width_p = for_height * (extents.right - extents.left)
+	    / (extents.bottom - extents.top);
+	}
+      /* Otherwise just return a constant preferred size */
+      else
+	*natural_width_p = CLUTTER_UNITS_FROM_INT (CLUTTER_MD2_PREFERRED_SIZE);
+    }
+}
+
+static void
+clutter_md2_get_preferred_height (ClutterActor *self,
+				  ClutterUnit   for_width,
+				  ClutterUnit  *min_height_p,
+				  ClutterUnit  *natural_height_p)
+{
+  ClutterMD2Private *priv = CLUTTER_MD2 (self)->priv;
+
+  /* There is no minimum size we can render at */
+  if (min_height_p)
+    *min_height_p = 0;
+
+  if (natural_height_p)
+    {
+      /* If this is a height-for-width request then return the height
+	 that would maintain the aspect ratio */
+      if (for_width >= 0 && priv->data)
+	{
+	  ClutterMD2DataExtents extents;
+
+	  clutter_md2_data_get_extents (priv->data, &extents);
+
+	  *natural_height_p = for_width * (extents.bottom - extents.top)
+	    / (extents.right - extents.left);
+	}
+      /* Otherwise just return a constant preferred size */
+      else
+	*natural_height_p = CLUTTER_UNITS_FROM_INT (CLUTTER_MD2_PREFERRED_SIZE);
+    }
 }
 
 gint
@@ -268,7 +342,7 @@ clutter_md2_on_data_changed (ClutterMD2 *md2)
   if (priv->current_skin >= num_skins)
     priv->current_skin = 0;
 
-  clutter_actor_queue_redraw (CLUTTER_ACTOR (md2));
+  clutter_actor_queue_relayout (CLUTTER_ACTOR (md2));
 }
 
 void
