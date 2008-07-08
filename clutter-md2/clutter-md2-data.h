@@ -57,6 +57,7 @@ GQuark clutter_md2_data_error_quark (void);
 typedef struct _ClutterMD2Data ClutterMD2Data;
 typedef struct _ClutterMD2DataPrivate ClutterMD2DataPrivate;
 typedef struct _ClutterMD2DataClass ClutterMD2DataClass;
+typedef struct _ClutterMD2DataExtents ClutterMD2DataExtents;
 
 struct _ClutterMD2Data
 {
@@ -71,6 +72,13 @@ struct _ClutterMD2DataClass
 
   /* signals */
   void (* data_changed) (ClutterMD2Data *data);
+};
+
+struct _ClutterMD2DataExtents
+{
+  float left, right;
+  float top, bottom;
+  float back, front;
 };
 
 GType clutter_md2_data_get_type (void) G_GNUC_CONST;
@@ -98,6 +106,13 @@ void clutter_md2_data_render (ClutterMD2Data        *data,
 			      gfloat                 interval,
 			      gint                   skin_num,
 			      const ClutterGeometry *geom);
+
+void clutter_md2_data_get_extents (ClutterMD2Data        *data,
+				   ClutterMD2DataExtents *extents);
+
+void clutter_md2_data_get_frame_extents (ClutterMD2Data        *data,
+					 gint                   frame_num,
+					 ClutterMD2DataExtents *extents);
 
 G_END_DECLS
 

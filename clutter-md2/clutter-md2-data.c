@@ -84,9 +84,7 @@ struct _ClutterMD2DataPrivate
   guint vertices_size;
 
   /* Maximum extents of all frames */
-  float left, right;
-  float top, bottom;
-  float back, front;
+  ClutterMD2DataExtents extents;
 };
 
 struct _ClutterMD2DataFrame
@@ -96,9 +94,7 @@ struct _ClutterMD2DataFrame
   char name[CLUTTER_MD2_DATA_MAX_FRAME_NAME_LEN + 1];
 
   /* Extents of the model in this frame */
-  float left, right;
-  float top, bottom;
-  float back, front;
+  ClutterMD2DataExtents extents;
 
   guchar vertices[1];
 };
@@ -296,7 +292,7 @@ clutter_md2_data_render (ClutterMD2Data        *data,
       || skin_num >= priv->num_skins
       || geom->width == 0
       || geom->height == 0
-      || priv->top == priv->bottom)
+      || priv->extents.top == priv->extents.bottom)
     return;
 
   frame_a = priv->frames[frame_num_a];
@@ -327,22 +323,23 @@ clutter_md2_data_render (ClutterMD2Data        *data,
 
   /* Scale so that the model fits in either the width or the height of
      the actor, whichever makes the model bigger */
-  if ((priv->right - priv->left) / (priv->bottom - priv->top)
+  if (((priv->extents.right - priv->extents.left)
+       / (priv->extents.bottom - priv->extents.top))
       > geom->width / (float) geom->height)
     /* Fit width */
-    scale = geom->width / (priv->right - priv->left);
+    scale = geom->width / (priv->extents.right - priv->extents.left);
   else
     /* Fit height */
-    scale = geom->height / (priv->bottom - priv->top);
+    scale = geom->height / (priv->extents.bottom - priv->extents.top);
 
   /* Scale about the center of the model and move to the center of the actor */
   glTranslatef (geom->width / 2,
 		geom->height / 2,
 		0);
   glScalef (scale, scale, scale);
-  glTranslatef (-(priv->left + priv->right) / 2,
-		-(priv->top + priv->bottom) / 2,
-		-(priv->back + priv->front) / 2);
+  glTranslatef (-(priv->extents.left + priv->extents.right) / 2,
+		-(priv->extents.top + priv->extents.bottom) / 2,
+		-(priv->extents.back + priv->extents.front) / 2);
 
   while (*(gint32 *) gl_command)
     {
@@ -466,6 +463,29 @@ clutter_md2_data_get_frame_name (ClutterMD2Data *data, gint frame_num)
 			NULL);
 
   return data->priv->frames[frame_num]->name;
+}
+
+void
+clutter_md2_data_get_extents (ClutterMD2Data *data,
+			      ClutterMD2DataExtents *extents)
+{
+  g_return_if_fail (CLUTTER_IS_MD2_DATA (data));
+  g_return_if_fail (extents != NULL);
+
+  *extents = data->priv->extents;
+}
+
+void
+clutter_md2_data_get_frame_extents (ClutterMD2Data *data,
+				    gint frame_num,
+				    ClutterMD2DataExtents *extents)
+{
+  g_return_if_fail (CLUTTER_IS_MD2_DATA (data));
+  g_return_if_fail (extents != NULL);
+  g_return_if_fail (frame_num >= 0
+		    && frame_num < data->priv->num_frames);
+
+  *extents = data->priv->frames[frame_num]->extents;
 }
 
 static gboolean
@@ -676,8 +696,8 @@ clutter_md2_data_load_frames (ClutterMD2Data *data, FILE *file,
   if (!clutter_md2_data_seek (file, file_offset, display_name, error))
     return FALSE;
 
-  priv->left = priv->top = priv->back = FLT_MAX;
-  priv->right = priv->bottom = priv->front = -FLT_MAX;
+  priv->extents.left = priv->extents.top = priv->extents.back = FLT_MAX;
+  priv->extents.right = priv->extents.bottom = priv->extents.front = -FLT_MAX;
 
   for (i = 0; i < num_frames; i++)
     {
@@ -709,8 +729,12 @@ clutter_md2_data_load_frames (ClutterMD2Data *data, FILE *file,
 				  file, display_name, error))
 	return FALSE;
 
-      frame->left = frame->top = frame->back = FLT_MAX;
-      frame->right = frame->bottom = frame->front = -FLT_MAX;
+      frame->extents.left = FLT_MAX;
+      frame->extents.top = FLT_MAX;
+      frame->extents.back = FLT_MAX;
+      frame->extents.right = -FLT_MAX;
+      frame->extents.bottom = -FLT_MAX;
+      frame->extents.front = -FLT_MAX;
 
       /* Check all of the normal indices and calculate the extents */
       for (p = frame->vertices + num_vertices * 4; p > frame->vertices;)
@@ -734,32 +758,32 @@ clutter_md2_data_load_frames (ClutterMD2Data *data, FILE *file,
 	  y = p[1] * frame->scale[1] + frame->translate[1];
 	  z = p[2] * frame->scale[2] + frame->translate[2];
 
-	  if (x < frame->left)
-	    frame->left = x;
-	  if (x > frame->right)
-	    frame->right = x;
-	  if (y < frame->top)
-	    frame->top = y;
-	  if (y > frame->bottom)
-	    frame->bottom = y;
-	  if (z < frame->back)
-	    frame->back = z;
-	  if (z > frame->front)
-	    frame->front = z;
+	  if (x < frame->extents.left)
+	    frame->extents.left = x;
+	  if (x > frame->extents.right)
+	    frame->extents.right = x;
+	  if (y < frame->extents.top)
+	    frame->extents.top = y;
+	  if (y > frame->extents.bottom)
+	    frame->extents.bottom = y;
+	  if (z < frame->extents.back)
+	    frame->extents.back = z;
+	  if (z > frame->extents.front)
+	    frame->extents.front = z;
 	}
 
-      if (frame->left < priv->left)
-	priv->left = frame->left;
-      if (frame->right > priv->right)
-	priv->right = frame->right;
-      if (frame->top < priv->top)
-	priv->top = frame->top;
-      if (frame->bottom > priv->bottom)
-	priv->bottom = frame->bottom;
-      if (frame->back < priv->back)
-	priv->back = frame->back;
-      if (frame->front > priv->front)
-	priv->front = frame->front;
+      if (frame->extents.left < priv->extents.left)
+	priv->extents.left = frame->extents.left;
+      if (frame->extents.right > priv->extents.right)
+	priv->extents.right = frame->extents.right;
+      if (frame->extents.top < priv->extents.top)
+	priv->extents.top = frame->extents.top;
+      if (frame->extents.bottom > priv->extents.bottom)
+	priv->extents.bottom = frame->extents.bottom;
+      if (frame->extents.back < priv->extents.back)
+	priv->extents.back = frame->extents.back;
+      if (frame->extents.front > priv->extents.front)
+	priv->extents.front = frame->extents.front;
     }
 
   return TRUE;
