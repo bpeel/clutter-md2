@@ -319,6 +319,8 @@ clutter_md2_dispose (GObject *self)
   md2->priv->current_frame_b = 0;
   md2->priv->current_frame_interval = 0;
   md2->priv->current_skin = 0;
+
+  G_OBJECT_CLASS (clutter_md2_parent_class)->dispose (self);
 }
 
 ClutterMD2Data *

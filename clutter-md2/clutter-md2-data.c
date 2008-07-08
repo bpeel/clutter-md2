@@ -1130,4 +1130,6 @@ clutter_md2_data_finalize (GObject *self)
   g_free (data->priv->vertices);
 
   clutter_md2_data_free_data (data);
+
+  G_OBJECT_CLASS (clutter_md2_data_parent_class)->finalize (self);
 }
