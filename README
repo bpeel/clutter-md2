@@ -1,0 +1,17 @@
+Clutter-MD2 - An MD2 renderer library for Clutter
+
+Clutter-MD2 is a library providing a ClutterActor subclass that can
+render a 3D textured model stored in an MD2 file. MD2 is a simple
+model format first introduced by Quake 2.
+
+Requirements:
+
+  Clutter >= 0.8.0
+  GdkPixbuf
+
+Copyright (C) 2008  OpenedHand
+
+Released under the terms of the GNU Lesser General Public License,
+version 2.1 or (at your option) any later version.  See the file
+COPYING for details.
+
