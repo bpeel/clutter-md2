@@ -373,9 +373,11 @@ clutter_md2_set_current_frame (ClutterMD2 *md2, gint frame_num)
   md2->priv->current_frame_b = frame_num;
 
   clutter_actor_queue_redraw (CLUTTER_ACTOR (md2));
-
+  
+  g_object_freeze_notify (G_OBJECT (md2));
   g_object_notify (G_OBJECT (md2), "current_frame");
   g_object_notify (G_OBJECT (md2), "sub_frame");
+  g_object_thaw_notify (G_OBJECT (md2));
 }
 
 void
@@ -436,8 +438,10 @@ clutter_md2_set_sub_frame (ClutterMD2 *md2, gint frame_a, gint frame_b,
 
   clutter_actor_queue_redraw (CLUTTER_ACTOR (md2));
 
+  g_object_freeze_notify (G_OBJECT (md2));
   g_object_notify (G_OBJECT (md2), "current_frame");
   g_object_notify (G_OBJECT (md2), "sub_frame");
+  g_object_thaw_notify (G_OBJECT (md2));
 }
 
 const gchar *
@@ -493,6 +497,8 @@ clutter_md2_on_data_changed (ClutterMD2 *md2)
   int num_frames = clutter_md2_get_n_frames (md2);
   int num_skins = clutter_md2_get_n_skins (md2);
 
+  g_object_freeze_notify (G_OBJECT (md2));
+
   if (priv->current_frame_a >= num_frames
       || priv->current_frame_b >= num_frames)
     {
@@ -509,6 +515,8 @@ clutter_md2_on_data_changed (ClutterMD2 *md2)
     }
 
   clutter_actor_queue_relayout (CLUTTER_ACTOR (md2));
+
+  g_object_thaw_notify (G_OBJECT (md2));
 }
 
 void
@@ -530,7 +538,11 @@ clutter_md2_set_data (ClutterMD2 *md2, ClutterMD2Data *data)
 				  G_CALLBACK (clutter_md2_on_data_changed),
 				  md2);
 
+  g_object_freeze_notify (G_OBJECT (md2));
+
   clutter_md2_on_data_changed (md2);
 
   g_object_notify (G_OBJECT (md2), "data");
+
+  g_object_thaw_notify (G_OBJECT (md2));
 }

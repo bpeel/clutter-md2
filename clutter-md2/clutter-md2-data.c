@@ -1197,9 +1197,12 @@ clutter_md2_data_load (ClutterMD2Data *data,
     clutter_md2_data_free_data (data);
 
   g_signal_emit (data, data_signals[DATA_CHANGED], 0);
+
+  g_object_freeze_notify (G_OBJECT (data));
   g_object_notify (G_OBJECT (data), "n_skins");
   g_object_notify (G_OBJECT (data), "n_frames");
   g_object_notify (G_OBJECT (data), "extents");
+  g_object_thaw_notify (G_OBJECT (data));
 
   return ret;
 }
