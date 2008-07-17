@@ -31,6 +31,7 @@
 G_BEGIN_DECLS
 
 #define CLUTTER_TYPE_MD2_DATA (clutter_md2_data_get_type ())
+#define CLUTTER_TYPE_MD2_DATA_EXTENTS (clutter_md2_data_extents_get_type ())
 
 #define CLUTTER_MD2_DATA(obj)					\
   (G_TYPE_CHECK_INSTANCE_CAST ((obj), CLUTTER_TYPE_MD2_DATA,	\
@@ -82,6 +83,7 @@ struct _ClutterMD2DataExtents
 };
 
 GType clutter_md2_data_get_type (void) G_GNUC_CONST;
+GType clutter_md2_data_extents_get_type (void) G_GNUC_CONST;
 
 ClutterMD2Data *clutter_md2_data_new (void);
 

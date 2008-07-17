@@ -46,6 +46,10 @@
 G_DEFINE_TYPE (ClutterMD2Data, clutter_md2_data, G_TYPE_INITIALLY_UNOWNED);
 
 static void clutter_md2_data_finalize (GObject *self);
+static void clutter_md2_data_get_property (GObject    *self,
+					   guint       property_id,
+					   GValue     *value,
+					   GParamSpec *pspec);
 
 typedef struct _ClutterMD2DataFrame ClutterMD2DataFrame;
 typedef struct _ClutterMD2DataState ClutterMD2DataState;
@@ -146,6 +150,15 @@ enum
 
 static guint data_signals[LAST_SIGNAL] = { 0, };
 
+enum
+  {
+    PROP_0,
+
+    PROP_N_SKINS,
+    PROP_N_FRAMES,
+    PROP_EXTENTS
+  };
+
 GQuark
 clutter_md2_data_error_quark (void)
 {
@@ -156,8 +169,10 @@ static void
 clutter_md2_data_class_init (ClutterMD2DataClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
+  GParamSpec *pspec;
 
   object_class->finalize = clutter_md2_data_finalize;
+  object_class->get_property = clutter_md2_data_get_property;
 
   g_type_class_add_private (klass, sizeof (ClutterMD2DataPrivate));
 
@@ -169,6 +184,23 @@ clutter_md2_data_class_init (ClutterMD2DataClass *klass)
 		  NULL, NULL,
 		  g_cclosure_marshal_VOID__VOID,
 		  G_TYPE_NONE, 0);
+
+  pspec = g_param_spec_int ("n_skins", "Number of skins loaded",
+			    "The current number of skins loaded",
+			    0, G_MAXINT, 0, G_PARAM_READABLE);
+  g_object_class_install_property (object_class, PROP_N_SKINS, pspec);
+
+  pspec = g_param_spec_int ("n_frames", "Number of frames loaded",
+			    "The current number of frames loaded",
+			    0, G_MAXINT, 0, G_PARAM_READABLE);
+  g_object_class_install_property (object_class, PROP_N_FRAMES, pspec);
+
+  pspec = g_param_spec_boxed ("extents", "Extents for all frames in the model",
+			      "The combined extents for all frames "
+			      "in the model",
+			      CLUTTER_TYPE_MD2_DATA_EXTENTS,
+			      G_PARAM_READABLE);
+  g_object_class_install_property (object_class, PROP_EXTENTS, pspec);
 }
 
 static void
@@ -186,6 +218,38 @@ clutter_md2_data_init (ClutterMD2Data *self)
   priv->vertices = g_malloc (sizeof (GLfloat)
 			     * CLUTTER_MD2_DATA_FLOATS_PER_VERTEX
 			     * (priv->vertices_size = 1));
+}
+
+static void
+clutter_md2_data_get_property (GObject    *self,
+			       guint       property_id,
+			       GValue     *value,
+			       GParamSpec *pspec)
+{
+  ClutterMD2Data *data = CLUTTER_MD2_DATA (self);
+
+  switch (property_id)
+    {
+    case PROP_N_SKINS:
+      g_value_set_int (value, clutter_md2_data_get_n_skins (data));
+      break;
+
+    case PROP_N_FRAMES:
+      g_value_set_int (value, clutter_md2_data_get_n_frames (data));
+      break;
+
+    case PROP_EXTENTS:
+      {
+	ClutterMD2DataExtents extents;
+	clutter_md2_data_get_extents (data, &extents);
+	g_value_set_boxed (value, &extents);
+      }
+      break;
+
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (self, property_id, pspec);
+      break;
+    }
 }
 
 ClutterMD2Data *
@@ -789,10 +853,10 @@ clutter_md2_data_load_frames (ClutterMD2Data *data, FILE *file,
   return TRUE;
 }
 
-gboolean
-clutter_md2_data_add_skin (ClutterMD2Data *data,
-			   const gchar *filename,
-			   GError **error)
+static gboolean
+clutter_md2_data_real_add_skin (ClutterMD2Data *data,
+				const gchar *filename,
+				GError **error)
 {
   ClutterMD2DataPrivate *priv;
   GdkPixbuf *pixbuf;
@@ -918,6 +982,21 @@ clutter_md2_data_add_skin (ClutterMD2Data *data,
   return TRUE;
 }
 
+gboolean
+clutter_md2_data_add_skin (ClutterMD2Data *data,
+			   const gchar *filename,
+			   GError **error)
+{
+  if (clutter_md2_data_real_add_skin (data, filename, error))
+    {
+      g_object_notify (G_OBJECT (data), "n_skins");
+
+      return TRUE;
+    }
+
+  return FALSE;
+}
+
 static gboolean
 clutter_md2_data_load_skins (ClutterMD2Data *data, FILE *file,
 			     const gchar *file_name,
@@ -956,7 +1035,7 @@ clutter_md2_data_load_skins (ClutterMD2Data *data, FILE *file,
       full_skin_path = g_build_filename (dir_name, skin_name, NULL);
       g_free (dir_name);
 
-      add_ret = clutter_md2_data_add_skin (data, full_skin_path, error);
+      add_ret = clutter_md2_data_real_add_skin (data, full_skin_path, error);
       g_free (full_skin_path);
       if (!add_ret)
 	return FALSE;
@@ -1118,6 +1197,9 @@ clutter_md2_data_load (ClutterMD2Data *data,
     clutter_md2_data_free_data (data);
 
   g_signal_emit (data, data_signals[DATA_CHANGED], 0);
+  g_object_notify (G_OBJECT (data), "n_skins");
+  g_object_notify (G_OBJECT (data), "n_frames");
+  g_object_notify (G_OBJECT (data), "extents");
 
   return ret;
 }
@@ -1132,4 +1214,30 @@ clutter_md2_data_finalize (GObject *self)
   clutter_md2_data_free_data (data);
 
   G_OBJECT_CLASS (clutter_md2_data_parent_class)->finalize (self);
+}
+
+static gpointer
+clutter_md2_data_extents_copy (gpointer data)
+{
+  return g_slice_dup (ClutterMD2DataExtents, data);
+}
+
+static void
+clutter_md2_data_extents_free (gpointer data)
+{
+  if (G_LIKELY (data))
+    g_slice_free (ClutterMD2DataExtents, data);
+}
+
+GType
+clutter_md2_data_extents_get_type (void)
+{
+  static GType our_type = 0;
+
+  if (G_UNLIKELY (our_type == 0))
+    our_type = g_boxed_type_register_static
+      (g_intern_static_string ("ClutterMD2DataExtents"),
+       clutter_md2_data_extents_copy, clutter_md2_data_extents_free);
+
+  return our_type;
 }
