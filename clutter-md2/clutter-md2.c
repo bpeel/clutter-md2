@@ -51,6 +51,14 @@ static void clutter_md2_get_preferred_height (ClutterActor *self,
 					      ClutterUnit   for_width,
 					      ClutterUnit  *min_height_p,
 					      ClutterUnit  *natural_height_p);
+static void clutter_md2_set_property (GObject      *self,
+				      guint         property_id,
+				      const GValue *value,
+				      GParamSpec   *pspec);
+static void clutter_md2_get_property (GObject    *self,
+				      guint       property_id,
+				      GValue     *value,
+				      GParamSpec *pspec);
 
 struct _ClutterMD2Private
 {
@@ -63,19 +71,60 @@ struct _ClutterMD2Private
   ClutterMD2Data *data;
 };
 
+enum
+  {
+    PROP_0,
+    
+    PROP_DATA,
+
+    PROP_CURRENT_SKIN,
+    PROP_CURRENT_FRAME,
+    PROP_SUB_FRAME
+  };
+
 static void
 clutter_md2_class_init (ClutterMD2Class *klass)
 {
   ClutterActorClass *actor_class = CLUTTER_ACTOR_CLASS (klass);
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
+  GParamSpec *pspec;
 
   actor_class->paint = clutter_md2_paint;
   actor_class->get_preferred_width = clutter_md2_get_preferred_width;
   actor_class->get_preferred_height = clutter_md2_get_preferred_height;
 
   object_class->dispose = clutter_md2_dispose;
+  object_class->set_property = clutter_md2_set_property;
+  object_class->get_property = clutter_md2_get_property;
 
   g_type_class_add_private (klass, sizeof (ClutterMD2Private));
+
+  pspec = g_param_spec_object ("data", "Data",
+			       "The ClutterMD2Data instance that "
+			       "will be renderered",
+			       CLUTTER_TYPE_MD2_DATA,
+			       G_PARAM_READWRITE);
+  g_object_class_install_property (object_class, PROP_DATA, pspec);
+
+  pspec = g_param_spec_int ("current_frame", "Current frame",
+			    "The frame number that will be rendered",
+			    0, G_MAXINT, 0,
+			    G_PARAM_READWRITE);
+  g_object_class_install_property (object_class, PROP_CURRENT_FRAME, pspec);
+
+  pspec = g_param_spec_float ("sub_frame", "Interpolated frame number",
+			      "A floating point number that represents two "
+			      "frame numbers and the interval between them "
+			      "that will be rendered",
+			      0.0f, G_MAXFLOAT, 0.0f,
+			      G_PARAM_READWRITE);
+  g_object_class_install_property (object_class, PROP_SUB_FRAME, pspec);
+
+  pspec = g_param_spec_int ("current_skin", "Current skin",
+			    "The skin number that will be rendered",
+			    0, G_MAXINT, 0,
+			    G_PARAM_READWRITE);
+  g_object_class_install_property (object_class, PROP_CURRENT_SKIN, pspec);
 }
 
 static void
@@ -89,6 +138,89 @@ clutter_md2_init (ClutterMD2 *self)
   priv->current_frame_b = 0;
   priv->current_skin = 0;
   priv->data = NULL;
+}
+
+static void
+clutter_md2_set_property (GObject      *self,
+			  guint         property_id,
+			  const GValue *value,
+			  GParamSpec   *pspec)
+{
+  ClutterMD2 *md2 = CLUTTER_MD2 (self);
+
+  switch (property_id)
+    {
+    case PROP_DATA:
+      clutter_md2_set_data (md2, g_value_get_object (value));
+      break;
+
+    case PROP_CURRENT_SKIN:
+      clutter_md2_set_current_skin (md2, g_value_get_int (value));
+      break;
+
+    case PROP_CURRENT_FRAME:
+      clutter_md2_set_current_frame (md2, g_value_get_int (value));
+      break;
+
+    case PROP_SUB_FRAME:
+      {
+	float sub_frame = g_value_get_float (value);
+	int frame_num = (int) sub_frame;
+
+	if ((float) frame_num == sub_frame)
+	  clutter_md2_set_current_frame (md2, frame_num);
+	else
+	  clutter_md2_set_sub_frame (md2, frame_num, frame_num + 1,
+				     sub_frame - frame_num);
+      }
+      break;
+
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (self, property_id, pspec);
+      break;
+    }
+}
+
+static void
+clutter_md2_get_property (GObject    *self,
+			  guint       property_id,
+			  GValue     *value,
+			  GParamSpec *pspec)
+{
+  ClutterMD2 *md2 = CLUTTER_MD2 (self);
+
+  switch (property_id)
+    {
+    case PROP_DATA:
+      g_value_set_object (value, clutter_md2_get_data (md2));
+      break;
+
+    case PROP_CURRENT_SKIN:
+      g_value_set_int (value, clutter_md2_get_current_skin (md2));
+      break;
+
+    case PROP_CURRENT_FRAME:
+      g_value_set_int (value, clutter_md2_get_current_frame (md2));
+      break;
+
+    case PROP_SUB_FRAME:
+      {
+	int frame_a, frame_b;
+	float interval;
+
+	clutter_md2_get_sub_frame (md2, &frame_a, &frame_b, &interval);
+
+	if (frame_a == frame_b)
+	  g_value_set_float (value, (float) frame_a);
+	else
+	  g_value_set_float (value, frame_a + interval);
+      }
+      break;
+
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (self, property_id, pspec);
+      break;
+    }
 }
 
 ClutterActor *
@@ -207,6 +339,8 @@ clutter_md2_set_current_skin (ClutterMD2 *md2, gint skin_num)
   md2->priv->current_skin = skin_num;
 
   clutter_actor_queue_redraw (CLUTTER_ACTOR (md2));
+
+  g_object_notify (G_OBJECT (md2), "current_skin");
 }
 
 gint
@@ -239,6 +373,9 @@ clutter_md2_set_current_frame (ClutterMD2 *md2, gint frame_num)
   md2->priv->current_frame_b = frame_num;
 
   clutter_actor_queue_redraw (CLUTTER_ACTOR (md2));
+
+  g_object_notify (G_OBJECT (md2), "current_frame");
+  g_object_notify (G_OBJECT (md2), "sub_frame");
 }
 
 void
@@ -266,6 +403,21 @@ clutter_md2_set_current_frame_by_name (ClutterMD2 *md2, const gchar *frame_name)
 }
 
 void
+clutter_md2_get_sub_frame (ClutterMD2 *md2, gint *frame_a, gint *frame_b,
+			   gfloat *interval)
+{
+  g_return_if_fail (CLUTTER_IS_MD2 (md2));
+
+  if (frame_a)
+    *frame_a = md2->priv->current_frame_a;
+  if (frame_a)
+    *frame_b = md2->priv->current_frame_b;
+  if (interval)
+    *interval = md2->priv->current_frame_a == md2->priv->current_frame_b
+      ? 0.0f : md2->priv->current_frame_interval;
+}
+
+void
 clutter_md2_set_sub_frame (ClutterMD2 *md2, gint frame_a, gint frame_b,
 			   gfloat interval)
 {
@@ -283,6 +435,9 @@ clutter_md2_set_sub_frame (ClutterMD2 *md2, gint frame_a, gint frame_b,
   md2->priv->current_frame_interval = interval;
 
   clutter_actor_queue_redraw (CLUTTER_ACTOR (md2));
+
+  g_object_notify (G_OBJECT (md2), "current_frame");
+  g_object_notify (G_OBJECT (md2), "sub_frame");
 }
 
 const gchar *
@@ -340,9 +495,18 @@ clutter_md2_on_data_changed (ClutterMD2 *md2)
 
   if (priv->current_frame_a >= num_frames
       || priv->current_frame_b >= num_frames)
-    priv->current_frame_b = priv->current_frame_a = 0;
+    {
+      priv->current_frame_b = priv->current_frame_a = 0;
+
+      g_object_notify (G_OBJECT (md2), "current_frame");
+      g_object_notify (G_OBJECT (md2), "sub_frame");
+    }
   if (priv->current_skin >= num_skins)
-    priv->current_skin = 0;
+    {
+      priv->current_skin = 0;
+
+      g_object_notify (G_OBJECT (md2), "curent_skin");
+    }
 
   clutter_actor_queue_relayout (CLUTTER_ACTOR (md2));
 }
@@ -367,4 +531,6 @@ clutter_md2_set_data (ClutterMD2 *md2, ClutterMD2Data *data)
 				  md2);
 
   clutter_md2_on_data_changed (md2);
+
+  g_object_notify (G_OBJECT (md2), "data");
 }

@@ -77,6 +77,9 @@ gint clutter_md2_get_current_frame (ClutterMD2 *md2);
 void clutter_md2_set_current_frame (ClutterMD2 *md2, gint frame_num);
 void clutter_md2_set_current_frame_by_name (ClutterMD2 *md2,
 					    const gchar *frame_name);
+void clutter_md2_get_sub_frame (ClutterMD2 *md2,
+				gint *frame_a, gint *frame_b,
+				gfloat *interval);
 void clutter_md2_set_sub_frame (ClutterMD2 *md2,
 				gint frame_a, gint frame_b,
 				gfloat interval);
