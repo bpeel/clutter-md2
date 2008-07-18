@@ -76,7 +76,7 @@ AC_C_CONST
 
 dnl ========================================================================
 
-CLUTTER_MD2_REQUIRES="clutter-0.7 glib-2.0 >= 2.14 gobject-2.0 gdk-pixbuf-2.0"
+CLUTTER_MD2_REQUIRES="clutter-0.8 glib-2.0 >= 2.14 gobject-2.0 gdk-pixbuf-2.0"
 
 PKG_CHECK_MODULES(CLUTTER_MD2_DEPS, [$CLUTTER_MD2_REQUIRES])
 
