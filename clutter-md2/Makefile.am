@@ -11,10 +11,10 @@ INCLUDES =                                              \
 	$(GCC_FLAGS) 					\
 	$(CLUTTER_MD2_CFLAGS)
 
-LDADD =                                                 \
-	$(CLUTTER_MD2_LT_LDFLAGS)                       \
-	-export-dynamic                                 \
-	-export-symbols-regex "^clutter_md2"            \
+LDADD =                                                   \
+	$(CLUTTER_MD2_LT_LDFLAGS)                         \
+	-export-dynamic                                   \
+	-export-symbols-regex "^clutter_(behaviour_)?md2" \
 	-rpath $(libdir)
 
 source_h =					          \
