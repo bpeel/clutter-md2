@@ -511,7 +511,7 @@ clutter_md2_on_data_changed (ClutterMD2 *md2)
     {
       priv->current_skin = 0;
 
-      g_object_notify (G_OBJECT (md2), "curent_skin");
+      g_object_notify (G_OBJECT (md2), "current_skin");
     }
 
   clutter_actor_queue_relayout (CLUTTER_ACTOR (md2));
