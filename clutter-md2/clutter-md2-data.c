@@ -30,7 +30,7 @@
 #include <glib-object.h>
 #include <glib/gstdio.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
-#include <clutter/clutter-util.h>
+#include <clutter/clutter.h>
 #include <errno.h>
 #include <string.h>
 /* Include cogl to get the right GL header for this platform */

@@ -27,7 +27,7 @@
 #define __CLUTTER_MD2_H__
 
 #include <glib-object.h>
-#include <clutter/clutter-actor.h>
+#include <clutter/clutter.h>
 #include <clutter-md2/clutter-md2-data.h>
 
 G_BEGIN_DECLS

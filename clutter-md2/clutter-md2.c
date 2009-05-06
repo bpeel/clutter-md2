@@ -28,7 +28,7 @@
 #endif
 
 #include <glib-object.h>
-#include <clutter/clutter-actor.h>
+#include <clutter/clutter.h>
 #include <string.h>
 
 #include "clutter-md2.h"

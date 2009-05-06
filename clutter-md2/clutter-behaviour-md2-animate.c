@@ -27,7 +27,7 @@
 #include "config.h"
 #endif
 
-#include <clutter/clutter-behaviour.h>
+#include <clutter/clutter.h>
 
 #include "clutter-md2.h"
 #include "clutter-behaviour-md2-animate.h"
@@ -76,7 +76,7 @@ alpha_notify_foreach (ClutterBehaviour *behaviour,
 
 static void
 clutter_behaviour_md2_animate_alpha_notify (ClutterBehaviour *behaviour,
-					    guint32           alpha_value)
+					    gdouble           alpha_value)
 {
   ClutterBehaviourMD2Animate        *animate_behaviour;
   ClutterBehaviourMD2AnimatePrivate *priv;
@@ -103,21 +103,19 @@ clutter_behaviour_md2_animate_alpha_notify (ClutterBehaviour *behaviour,
 	  gint temp = frame_start;
 	  frame_start = frame_end;
 	  frame_end = temp;
-	  alpha_value = CLUTTER_ALPHA_MAX_ALPHA - alpha_value;
+	  alpha_value = 1 - alpha_value;
 	}
 
       alpha_multiple = alpha_value * (frame_end - frame_start);
 
-      data.frame_a = alpha_multiple / CLUTTER_ALPHA_MAX_ALPHA
-	+ frame_start;
+      data.frame_a = alpha_multiple + frame_start;
 
       if (data.frame_a == priv->frame_end)
 	data.frame_b = data.frame_a;
       else
 	data.frame_b = data.frame_a + 1;
 
-      data.interval = alpha_multiple % CLUTTER_ALPHA_MAX_ALPHA
-	/ (float) CLUTTER_ALPHA_MAX_ALPHA;
+      data.interval = alpha_multiple; 
     }
 
   clutter_behaviour_actors_foreach (behaviour,
