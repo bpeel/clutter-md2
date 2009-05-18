@@ -1,5 +1,5 @@
 #include <clutter/clutter.h>
-#include <clutter/pangoclutter.h>
+#include <cogl/cogl-pango.h>
 #include <clutter-md2/clutter-md2.h>
 #include <clutter-md2/clutter-behaviour-md2-animate.h>
 #include <stdlib.h>
@@ -117,7 +117,9 @@ on_frame_list_paint (ClutterActor *actor, DisplayState *data)
   int stage_height = clutter_actor_get_height (data->stage);
   int start, ypos, frame_num;
   PangoFontDescription *font_description;
-  ClutterColor black = { 0x00, 0x00, 0x00, 0xff };
+  CoglColor black;
+
+  cogl_color_set_from_4ub (&black, 0x00, 0x00, 0x00, 0xff);
 
   start = get_frame_list_start (data);
   frame_num = start / (BUTTON_HEIGHT + BUTTON_GAP);
@@ -133,7 +135,8 @@ on_frame_list_paint (ClutterActor *actor, DisplayState *data)
 	= clutter_md2_get_frame_name (CLUTTER_MD2 (data->md2), frame_num);
       PangoRectangle extents;
 
-      cogl_color (&bg_color);
+      cogl_set_source_color4ub (bg_color.red, bg_color.blue, bg_color.blue,
+                                bg_color.alpha);
       cogl_rectangle (0, ypos, BUTTON_WIDTH, BUTTON_HEIGHT);
 
       layout = pango_layout_new (data->pango_context);
@@ -141,11 +144,11 @@ on_frame_list_paint (ClutterActor *actor, DisplayState *data)
       pango_layout_set_text (layout, frame_name, -1);
       pango_layout_set_font_description (layout, font_description);
       pango_layout_get_pixel_extents (layout, NULL, &extents);
-      pango_clutter_render_layout (layout,
-				   BUTTON_WIDTH / 2 - extents.width / 2,
-				   ypos + BUTTON_HEIGHT / 2
-				   - extents.height / 2,
-				   &black, 0);
+      cogl_pango_render_layout (layout,
+                                BUTTON_WIDTH / 2 - extents.width / 2,
+                                ypos + BUTTON_HEIGHT / 2
+                                - extents.height / 2,
+                                &black, 0);
 
       g_object_unref (layout);
 
@@ -268,8 +271,8 @@ make_angle_buttons (DisplayState *state)
       char axis_text[2] = { axis + 'X', 0 };
       int angle;
 
-      label = clutter_label_new_with_text (ANGLE_FONT, axis_text);
-      clutter_label_set_alignment (CLUTTER_LABEL (label), PANGO_ALIGN_CENTER);
+      label = clutter_text_new_with_text (ANGLE_FONT, axis_text);
+      clutter_text_set_line_alignment (CLUTTER_TEXT (label), PANGO_ALIGN_CENTER);
       clutter_actor_set_position (label, 0, axis * ANGLE_CONTROL_HEIGHT);
       clutter_actor_set_size (label, ANGLE_CONTROL_WIDTH, ANGLE_CONTROL_HEIGHT);
 
@@ -289,9 +292,9 @@ make_angle_buttons (DisplayState *state)
 
       for (angle = 0; angle < ANGLE_LABEL_COUNT; angle++)
 	{
-	  label = clutter_label_new_with_text (ANGLE_FONT, angle_labels[angle]);
-	  clutter_label_set_alignment (CLUTTER_LABEL (label),
-				       PANGO_ALIGN_CENTER);
+	  label = clutter_text_new_with_text (ANGLE_FONT, angle_labels[angle]);
+	  clutter_text_set_line_alignment (CLUTTER_TEXT (label),
+                                           PANGO_ALIGN_CENTER);
 	  clutter_actor_set_position (label, ANGLE_CONTROL_WIDTH * (angle + 1),
 				      ANGLE_CONTROL_HEIGHT * axis);
 	  clutter_actor_set_size (label, ANGLE_CONTROL_WIDTH,
@@ -388,7 +391,7 @@ main (int argc, char **argv)
 
   tl = clutter_timeline_new (1, 60);
   clutter_timeline_set_loop (tl, TRUE);
-  alpha = clutter_alpha_new_full (tl, CLUTTER_ALPHA_RAMP_INC, NULL, NULL);
+  alpha = clutter_alpha_new_full (tl, CLUTTER_LINEAR);
   state.anim = clutter_behaviour_md2_animate_new (alpha, 0, 0);
   clutter_behaviour_apply (state.anim, md2);
   state.md2 = md2;
@@ -437,9 +440,9 @@ main (int argc, char **argv)
 			      - clutter_actor_get_height (angle_buttons));
   clutter_container_add (CLUTTER_CONTAINER (stage), angle_buttons, NULL);
 
-  font_map = pango_clutter_font_map_new ();
+  font_map = cogl_pango_font_map_new ();
   state.pango_context
-    = pango_clutter_font_map_create_context (PANGO_CLUTTER_FONT_MAP (font_map));
+    = cogl_pango_font_map_create_context (COGL_PANGO_FONT_MAP (font_map));
 
   clutter_actor_show (stage);
 
