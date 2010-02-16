@@ -99,8 +99,8 @@ on_frame_list_click (ClutterActor *frame_list, ClutterButtonEvent *event,
     clutter_timeline_stop (tl);
   else
     {
-      clutter_timeline_set_n_frames (tl, 16 * (ABS (frame_start
-                                                    - frame_end) + 1));
+      clutter_timeline_set_duration (tl, 267 * (ABS (frame_start
+                                                     - frame_end) + 1));
       clutter_timeline_rewind (tl);
       clutter_timeline_start (tl);
     }
@@ -137,7 +137,7 @@ on_frame_list_paint (ClutterActor *actor, DisplayState *data)
 
       cogl_set_source_color4ub (bg_color.red, bg_color.blue, bg_color.blue,
                                 bg_color.alpha);
-      cogl_rectangle (0, ypos, BUTTON_WIDTH, BUTTON_HEIGHT);
+      cogl_rectangle (0, ypos, BUTTON_WIDTH, ypos + BUTTON_HEIGHT);
 
       layout = pango_layout_new (data->pango_context);
 
@@ -315,7 +315,7 @@ make_angle_buttons (DisplayState *state)
 }
 
 static void
-on_rotate_frame (ClutterTimeline *tl, gint frame_num, DisplayState *state)
+on_rotate_frame (ClutterTimeline *tl, gint elapsed_time, DisplayState *state)
 {
   int axis;
   int md2_width = clutter_actor_get_width (state->md2);
@@ -325,7 +325,7 @@ on_rotate_frame (ClutterTimeline *tl, gint frame_num, DisplayState *state)
     if (state->axis_angles[axis] == ANGLE_LABEL_COUNT - 1)
       clutter_actor_set_rotation (state->md2,
                                   CLUTTER_X_AXIS + axis,
-                                  frame_num,
+                                  elapsed_time * 360 / 6000,
                                   md2_width / 2, md2_height / 2, 0);
 }
 
@@ -353,7 +353,7 @@ main (int argc, char **argv)
   stage = clutter_stage_get_default ();
 
   if (getenv ("FULLSCREEN"))
-    clutter_stage_fullscreen (CLUTTER_STAGE (stage));
+    clutter_stage_set_fullscreen (CLUTTER_STAGE (stage), TRUE);
 
   clutter_stage_set_color (CLUTTER_STAGE (stage), &transparent);
 
@@ -382,7 +382,7 @@ main (int argc, char **argv)
 
   clutter_md2_set_data (CLUTTER_MD2 (md2), data);
 
-  tl = clutter_timeline_new (360, 60);
+  tl = clutter_timeline_new (6000);
   clutter_timeline_start (tl);
   clutter_timeline_set_loop (tl, TRUE);
 
@@ -390,7 +390,7 @@ main (int argc, char **argv)
 
   clutter_container_add (CLUTTER_CONTAINER (stage), md2, NULL);
 
-  tl = clutter_timeline_new (1, 60);
+  tl = clutter_timeline_new (16);
   clutter_timeline_set_loop (tl, TRUE);
   alpha = clutter_alpha_new_full (tl, CLUTTER_LINEAR);
   state.anim = clutter_behaviour_md2_animate_new (alpha, 0, 0);

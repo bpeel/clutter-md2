@@ -6,6 +6,7 @@
  * Authored By Neil Roberts  <neil@o-hand.com>
  *
  * Copyright (C) 2008 OpenedHand
+ * Copyright (C) 2010 Intel Corporation
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -44,13 +45,13 @@ G_DEFINE_TYPE (ClutterMD2, clutter_md2, CLUTTER_TYPE_ACTOR);
 static void clutter_md2_paint (ClutterActor *self);
 static void clutter_md2_dispose (GObject *self);
 static void clutter_md2_get_preferred_width (ClutterActor *self,
-                                             ClutterUnit   for_height,
-                                             ClutterUnit  *min_width_p,
-                                             ClutterUnit  *natural_width_p);
+                                             gfloat        for_height,
+                                             gfloat       *min_width_p,
+                                             gfloat       *natural_width_p);
 static void clutter_md2_get_preferred_height (ClutterActor *self,
-                                              ClutterUnit   for_width,
-                                              ClutterUnit  *min_height_p,
-                                              ClutterUnit  *natural_height_p);
+                                              gfloat        for_width,
+                                              gfloat       *min_height_p,
+                                              gfloat       *natural_height_p);
 static void clutter_md2_set_property (GObject      *self,
                                       guint         property_id,
                                       const GValue *value,
@@ -251,9 +252,9 @@ clutter_md2_paint (ClutterActor *self)
 
 static void
 clutter_md2_get_preferred_width (ClutterActor *self,
-                                 ClutterUnit   for_height,
-                                 ClutterUnit  *min_width_p,
-                                 ClutterUnit  *natural_width_p)
+                                 gfloat        for_height,
+                                 gfloat       *min_width_p,
+                                 gfloat       *natural_width_p)
 {
   ClutterMD2Private *priv = CLUTTER_MD2 (self)->priv;
 
@@ -276,15 +277,15 @@ clutter_md2_get_preferred_width (ClutterActor *self,
         }
       /* Otherwise just return a constant preferred size */
       else
-        *natural_width_p = CLUTTER_UNITS_FROM_INT (CLUTTER_MD2_PREFERRED_SIZE);
+        *natural_width_p = CLUTTER_MD2_PREFERRED_SIZE;
     }
 }
 
 static void
 clutter_md2_get_preferred_height (ClutterActor *self,
-                                  ClutterUnit   for_width,
-                                  ClutterUnit  *min_height_p,
-                                  ClutterUnit  *natural_height_p)
+                                  gfloat        for_width,
+                                  gfloat       *min_height_p,
+                                  gfloat       *natural_height_p)
 {
   ClutterMD2Private *priv = CLUTTER_MD2 (self)->priv;
 
@@ -307,7 +308,7 @@ clutter_md2_get_preferred_height (ClutterActor *self,
         }
       /* Otherwise just return a constant preferred size */
       else
-        *natural_height_p = CLUTTER_UNITS_FROM_INT (CLUTTER_MD2_PREFERRED_SIZE);
+        *natural_height_p = CLUTTER_MD2_PREFERRED_SIZE;
     }
 }
 

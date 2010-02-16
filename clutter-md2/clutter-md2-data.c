@@ -6,6 +6,7 @@
  * Authored By Neil Roberts  <neil@o-hand.com>
  *
  * Copyright (C) 2008 OpenedHand
+ * Copyright (C) 2010 Intel Corporation
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -365,6 +366,8 @@ clutter_md2_data_render (ClutterMD2Data        *data,
   vertices_b = frame_b->vertices;
   gl_command = priv->gl_commands;
 
+  cogl_begin_gl ();
+
   clutter_md2_data_save_state (&state);
 
   glEnable (GL_DEPTH_TEST);
@@ -500,6 +503,8 @@ clutter_md2_data_render (ClutterMD2Data        *data,
   glPopMatrix ();
 
   clutter_md2_data_restore_state (&state);
+
+  cogl_end_gl ();
 }
 
 gint
@@ -625,6 +630,17 @@ clutter_md2_data_check_malloc (const gchar *display_name,
     return g_malloc (size);
 }
 
+static gint
+clutter_md2_data_next_p2 (gint a)
+{
+  int rval = 1;
+
+  while (rval < a)
+    rval <<= 1;
+
+  return rval;
+}
+
 static gboolean
 clutter_md2_data_load_gl_commands (ClutterMD2Data *data, FILE *file,
                                    const gchar *display_name,
@@ -640,8 +656,8 @@ clutter_md2_data_load_gl_commands (ClutterMD2Data *data, FILE *file,
 
   /* The textures are always power of two sized so we may need to
      scale the texture coordinates */
-  texture_width = clutter_util_next_p2 (priv->skin_width);
-  texture_height = clutter_util_next_p2 (priv->skin_height);
+  texture_width = clutter_md2_data_next_p2 (priv->skin_width);
+  texture_height = clutter_md2_data_next_p2 (priv->skin_height);
 
   if (!clutter_md2_data_seek (file, file_offset, display_name, error))
     return FALSE;
@@ -871,8 +887,8 @@ clutter_md2_data_real_add_skin (ClutterMD2Data *data,
   priv = data->priv;
 
   /* The textures should always be a power of two */
-  texture_width = clutter_util_next_p2 (priv->skin_width);
-  texture_height = clutter_util_next_p2 (priv->skin_height);
+  texture_width = clutter_md2_data_next_p2 (priv->skin_width);
+  texture_height = clutter_md2_data_next_p2 (priv->skin_height);
 
   pixbuf = gdk_pixbuf_new_from_file (filename, error);
 
