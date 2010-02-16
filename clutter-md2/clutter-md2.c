@@ -44,21 +44,21 @@ G_DEFINE_TYPE (ClutterMD2, clutter_md2, CLUTTER_TYPE_ACTOR);
 static void clutter_md2_paint (ClutterActor *self);
 static void clutter_md2_dispose (GObject *self);
 static void clutter_md2_get_preferred_width (ClutterActor *self,
-					     ClutterUnit   for_height,
-					     ClutterUnit  *min_width_p,
-					     ClutterUnit  *natural_width_p);
+                                             ClutterUnit   for_height,
+                                             ClutterUnit  *min_width_p,
+                                             ClutterUnit  *natural_width_p);
 static void clutter_md2_get_preferred_height (ClutterActor *self,
-					      ClutterUnit   for_width,
-					      ClutterUnit  *min_height_p,
-					      ClutterUnit  *natural_height_p);
+                                              ClutterUnit   for_width,
+                                              ClutterUnit  *min_height_p,
+                                              ClutterUnit  *natural_height_p);
 static void clutter_md2_set_property (GObject      *self,
-				      guint         property_id,
-				      const GValue *value,
-				      GParamSpec   *pspec);
+                                      guint         property_id,
+                                      const GValue *value,
+                                      GParamSpec   *pspec);
 static void clutter_md2_get_property (GObject    *self,
-				      guint       property_id,
-				      GValue     *value,
-				      GParamSpec *pspec);
+                                      guint       property_id,
+                                      GValue     *value,
+                                      GParamSpec *pspec);
 
 struct _ClutterMD2Private
 {
@@ -67,14 +67,14 @@ struct _ClutterMD2Private
   int current_skin;
 
   guint data_changed_handler;
-  
+
   ClutterMD2Data *data;
 };
 
 enum
   {
     PROP_0,
-    
+
     PROP_DATA,
 
     PROP_CURRENT_SKIN,
@@ -100,30 +100,30 @@ clutter_md2_class_init (ClutterMD2Class *klass)
   g_type_class_add_private (klass, sizeof (ClutterMD2Private));
 
   pspec = g_param_spec_object ("data", "Data",
-			       "The ClutterMD2Data instance that "
-			       "will be renderered",
-			       CLUTTER_TYPE_MD2_DATA,
-			       G_PARAM_READWRITE);
+                               "The ClutterMD2Data instance that "
+                               "will be renderered",
+                               CLUTTER_TYPE_MD2_DATA,
+                               G_PARAM_READWRITE);
   g_object_class_install_property (object_class, PROP_DATA, pspec);
 
   pspec = g_param_spec_int ("current_frame", "Current frame",
-			    "The frame number that will be rendered",
-			    0, G_MAXINT, 0,
-			    G_PARAM_READWRITE);
+                            "The frame number that will be rendered",
+                            0, G_MAXINT, 0,
+                            G_PARAM_READWRITE);
   g_object_class_install_property (object_class, PROP_CURRENT_FRAME, pspec);
 
   pspec = g_param_spec_float ("sub_frame", "Interpolated frame number",
-			      "A floating point number that represents two "
-			      "frame numbers and the interval between them "
-			      "that will be rendered",
-			      0.0f, G_MAXFLOAT, 0.0f,
-			      G_PARAM_READWRITE);
+                              "A floating point number that represents two "
+                              "frame numbers and the interval between them "
+                              "that will be rendered",
+                              0.0f, G_MAXFLOAT, 0.0f,
+                              G_PARAM_READWRITE);
   g_object_class_install_property (object_class, PROP_SUB_FRAME, pspec);
 
   pspec = g_param_spec_int ("current_skin", "Current skin",
-			    "The skin number that will be rendered",
-			    0, G_MAXINT, 0,
-			    G_PARAM_READWRITE);
+                            "The skin number that will be rendered",
+                            0, G_MAXINT, 0,
+                            G_PARAM_READWRITE);
   g_object_class_install_property (object_class, PROP_CURRENT_SKIN, pspec);
 }
 
@@ -142,9 +142,9 @@ clutter_md2_init (ClutterMD2 *self)
 
 static void
 clutter_md2_set_property (GObject      *self,
-			  guint         property_id,
-			  const GValue *value,
-			  GParamSpec   *pspec)
+                          guint         property_id,
+                          const GValue *value,
+                          GParamSpec   *pspec)
 {
   ClutterMD2 *md2 = CLUTTER_MD2 (self);
 
@@ -164,14 +164,14 @@ clutter_md2_set_property (GObject      *self,
 
     case PROP_SUB_FRAME:
       {
-	float sub_frame = g_value_get_float (value);
-	int frame_num = (int) sub_frame;
+        float sub_frame = g_value_get_float (value);
+        int frame_num = (int) sub_frame;
 
-	if ((float) frame_num == sub_frame)
-	  clutter_md2_set_current_frame (md2, frame_num);
-	else
-	  clutter_md2_set_sub_frame (md2, frame_num, frame_num + 1,
-				     sub_frame - frame_num);
+        if ((float) frame_num == sub_frame)
+          clutter_md2_set_current_frame (md2, frame_num);
+        else
+          clutter_md2_set_sub_frame (md2, frame_num, frame_num + 1,
+                                     sub_frame - frame_num);
       }
       break;
 
@@ -183,9 +183,9 @@ clutter_md2_set_property (GObject      *self,
 
 static void
 clutter_md2_get_property (GObject    *self,
-			  guint       property_id,
-			  GValue     *value,
-			  GParamSpec *pspec)
+                          guint       property_id,
+                          GValue     *value,
+                          GParamSpec *pspec)
 {
   ClutterMD2 *md2 = CLUTTER_MD2 (self);
 
@@ -205,15 +205,15 @@ clutter_md2_get_property (GObject    *self,
 
     case PROP_SUB_FRAME:
       {
-	int frame_a, frame_b;
-	float interval;
+        int frame_a, frame_b;
+        float interval;
 
-	clutter_md2_get_sub_frame (md2, &frame_a, &frame_b, &interval);
+        clutter_md2_get_sub_frame (md2, &frame_a, &frame_b, &interval);
 
-	if (frame_a == frame_b)
-	  g_value_set_float (value, (float) frame_a);
-	else
-	  g_value_set_float (value, frame_a + interval);
+        if (frame_a == frame_b)
+          g_value_set_float (value, (float) frame_a);
+        else
+          g_value_set_float (value, frame_a + interval);
       }
       break;
 
@@ -235,25 +235,25 @@ clutter_md2_paint (ClutterActor *self)
   ClutterMD2 *md2 = CLUTTER_MD2 (self);
   ClutterMD2Private *priv = md2->priv;
   ClutterGeometry geom;
-  
+
   clutter_actor_get_allocation_geometry (self, &geom);
 
   if (priv->data == NULL)
     return;
 
   clutter_md2_data_render (priv->data,
-			   priv->current_frame_a,
-			   priv->current_frame_b,
-			   priv->current_frame_interval,
-			   priv->current_skin,
-			   &geom);
+                           priv->current_frame_a,
+                           priv->current_frame_b,
+                           priv->current_frame_interval,
+                           priv->current_skin,
+                           &geom);
 }
 
 static void
 clutter_md2_get_preferred_width (ClutterActor *self,
-				 ClutterUnit   for_height,
-				 ClutterUnit  *min_width_p,
-				 ClutterUnit  *natural_width_p)
+                                 ClutterUnit   for_height,
+                                 ClutterUnit  *min_width_p,
+                                 ClutterUnit  *natural_width_p)
 {
   ClutterMD2Private *priv = CLUTTER_MD2 (self)->priv;
 
@@ -264,27 +264,27 @@ clutter_md2_get_preferred_width (ClutterActor *self,
   if (natural_width_p)
     {
       /* If this is a width-for-height request then return the width
-	 that would maintain the aspect ratio */
+         that would maintain the aspect ratio */
       if (for_height >= 0 && priv->data)
-	{
-	  ClutterMD2DataExtents extents;
+        {
+          ClutterMD2DataExtents extents;
 
-	  clutter_md2_data_get_extents (priv->data, &extents);
+          clutter_md2_data_get_extents (priv->data, &extents);
 
-	  *natural_width_p = for_height * (extents.right - extents.left)
-	    / (extents.bottom - extents.top);
-	}
+          *natural_width_p = for_height * (extents.right - extents.left)
+            / (extents.bottom - extents.top);
+        }
       /* Otherwise just return a constant preferred size */
       else
-	*natural_width_p = CLUTTER_UNITS_FROM_INT (CLUTTER_MD2_PREFERRED_SIZE);
+        *natural_width_p = CLUTTER_UNITS_FROM_INT (CLUTTER_MD2_PREFERRED_SIZE);
     }
 }
 
 static void
 clutter_md2_get_preferred_height (ClutterActor *self,
-				  ClutterUnit   for_width,
-				  ClutterUnit  *min_height_p,
-				  ClutterUnit  *natural_height_p)
+                                  ClutterUnit   for_width,
+                                  ClutterUnit  *min_height_p,
+                                  ClutterUnit  *natural_height_p)
 {
   ClutterMD2Private *priv = CLUTTER_MD2 (self)->priv;
 
@@ -295,19 +295,19 @@ clutter_md2_get_preferred_height (ClutterActor *self,
   if (natural_height_p)
     {
       /* If this is a height-for-width request then return the height
-	 that would maintain the aspect ratio */
+         that would maintain the aspect ratio */
       if (for_width >= 0 && priv->data)
-	{
-	  ClutterMD2DataExtents extents;
+        {
+          ClutterMD2DataExtents extents;
 
-	  clutter_md2_data_get_extents (priv->data, &extents);
+          clutter_md2_data_get_extents (priv->data, &extents);
 
-	  *natural_height_p = for_width * (extents.bottom - extents.top)
-	    / (extents.right - extents.left);
-	}
+          *natural_height_p = for_width * (extents.bottom - extents.top)
+            / (extents.right - extents.left);
+        }
       /* Otherwise just return a constant preferred size */
       else
-	*natural_height_p = CLUTTER_UNITS_FROM_INT (CLUTTER_MD2_PREFERRED_SIZE);
+        *natural_height_p = CLUTTER_UNITS_FROM_INT (CLUTTER_MD2_PREFERRED_SIZE);
     }
 }
 
@@ -367,13 +367,13 @@ clutter_md2_set_current_frame (ClutterMD2 *md2, gint frame_num)
 {
   g_return_if_fail (CLUTTER_IS_MD2 (md2));
   g_return_if_fail (frame_num >= 0
-		    && frame_num < clutter_md2_get_n_frames (md2));
+                    && frame_num < clutter_md2_get_n_frames (md2));
 
   md2->priv->current_frame_a = frame_num;
   md2->priv->current_frame_b = frame_num;
 
   clutter_actor_queue_redraw (CLUTTER_ACTOR (md2));
-  
+
   g_object_freeze_notify (G_OBJECT (md2));
   g_object_notify (G_OBJECT (md2), "current_frame");
   g_object_notify (G_OBJECT (md2), "sub_frame");
@@ -399,14 +399,14 @@ clutter_md2_set_current_frame_by_name (ClutterMD2 *md2, const gchar *frame_name)
   for (i = 0; i <num_frames; i++)
     if (!strcmp (clutter_md2_data_get_frame_name (priv->data, i), frame_name))
       {
-	clutter_md2_set_current_frame (md2, i);
-	break;
+        clutter_md2_set_current_frame (md2, i);
+        break;
       }
 }
 
 void
 clutter_md2_get_sub_frame (ClutterMD2 *md2, gint *frame_a, gint *frame_b,
-			   gfloat *interval)
+                           gfloat *interval)
 {
   g_return_if_fail (CLUTTER_IS_MD2 (md2));
 
@@ -421,7 +421,7 @@ clutter_md2_get_sub_frame (ClutterMD2 *md2, gint *frame_a, gint *frame_b,
 
 void
 clutter_md2_set_sub_frame (ClutterMD2 *md2, gint frame_a, gint frame_b,
-			   gfloat interval)
+                           gfloat interval)
 {
   int num_frames;
 
@@ -449,8 +449,8 @@ clutter_md2_get_frame_name (ClutterMD2 *md2, gint frame_num)
 {
   g_return_val_if_fail (CLUTTER_IS_MD2 (md2), NULL);
   g_return_val_if_fail (frame_num >= 0
-			&& frame_num < clutter_md2_get_n_frames (md2),
-			NULL);
+                        && frame_num < clutter_md2_get_n_frames (md2),
+                        NULL);
 
   return clutter_md2_data_get_frame_name (md2->priv->data, frame_num);
 }
@@ -461,7 +461,7 @@ clutter_md2_forget_data (ClutterMD2 *md2)
   if (md2->priv->data)
     {
       g_signal_handler_disconnect (md2->priv->data,
-				   md2->priv->data_changed_handler);
+                                   md2->priv->data_changed_handler);
       g_object_unref (md2->priv->data);
       md2->priv->data = NULL;
     }
@@ -535,8 +535,8 @@ clutter_md2_set_data (ClutterMD2 *md2, ClutterMD2Data *data)
   if (data)
     md2->priv->data_changed_handler
       = g_signal_connect_swapped (data, "data-changed",
-				  G_CALLBACK (clutter_md2_on_data_changed),
-				  md2);
+                                  G_CALLBACK (clutter_md2_on_data_changed),
+                                  md2);
 
   g_object_freeze_notify (G_OBJECT (md2));
 

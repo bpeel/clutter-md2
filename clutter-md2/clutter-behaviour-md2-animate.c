@@ -42,10 +42,10 @@ struct _ClutterBehaviourMD2AnimatePrivate
   gint frame_end;
 };
 
-#define CLUTTER_BEHAVIOUR_MD2_ANIMATE_GET_PRIVATE(obj)			\
-  (G_TYPE_INSTANCE_GET_PRIVATE ((obj),					\
-				CLUTTER_TYPE_BEHAVIOUR_MD2_ANIMATE,	\
-				ClutterBehaviourMD2AnimatePrivate))
+#define CLUTTER_BEHAVIOUR_MD2_ANIMATE_GET_PRIVATE(obj)                  \
+  (G_TYPE_INSTANCE_GET_PRIVATE ((obj),                                  \
+                                CLUTTER_TYPE_BEHAVIOUR_MD2_ANIMATE,     \
+                                ClutterBehaviourMD2AnimatePrivate))
 
 enum
 {
@@ -63,20 +63,20 @@ struct ForEachData
 
 static void
 alpha_notify_foreach (ClutterBehaviour *behaviour,
-		      ClutterActor     *actor,
-		      gpointer          user_data)
+                      ClutterActor     *actor,
+                      gpointer          user_data)
 {
   struct ForEachData *data = (struct ForEachData *) user_data;
 
   if (CLUTTER_IS_MD2 (actor))
     clutter_md2_set_sub_frame (CLUTTER_MD2 (actor),
-			       data->frame_a, data->frame_b,
-			       data->interval);
+                               data->frame_a, data->frame_b,
+                               data->interval);
 }
 
 static void
 clutter_behaviour_md2_animate_alpha_notify (ClutterBehaviour *behaviour,
-					    gdouble           alpha_value)
+                                            gdouble           alpha_value)
 {
   ClutterBehaviourMD2Animate        *animate_behaviour;
   ClutterBehaviourMD2AnimatePrivate *priv;
@@ -99,35 +99,35 @@ clutter_behaviour_md2_animate_alpha_notify (ClutterBehaviour *behaviour,
       frame_end = priv->frame_end;
 
       if (frame_start > frame_end)
-	{
-	  gint temp = frame_start;
-	  frame_start = frame_end;
-	  frame_end = temp;
-	  alpha_value = 1 - alpha_value;
-	}
+        {
+          gint temp = frame_start;
+          frame_start = frame_end;
+          frame_end = temp;
+          alpha_value = 1 - alpha_value;
+        }
 
       alpha_multiple = alpha_value * (frame_end - frame_start);
 
       data.frame_a = alpha_multiple + frame_start;
 
       if (data.frame_a == priv->frame_end)
-	data.frame_b = data.frame_a;
+        data.frame_b = data.frame_a;
       else
-	data.frame_b = data.frame_a + 1;
+        data.frame_b = data.frame_a + 1;
 
-      data.interval = alpha_multiple; 
+      data.interval = alpha_multiple;
     }
 
   clutter_behaviour_actors_foreach (behaviour,
-				    alpha_notify_foreach,
-				    &data);
+                                    alpha_notify_foreach,
+                                    &data);
 }
 
 static void
 clutter_behaviour_md2_animate_set_property (GObject      *gobject,
-					    guint         prop_id,
-					    const GValue *value,
-					    GParamSpec   *pspec)
+                                            guint         prop_id,
+                                            const GValue *value,
+                                            GParamSpec   *pspec)
 {
   ClutterBehaviourMD2Animate *animate;
   ClutterBehaviourMD2AnimatePrivate *priv;
@@ -151,9 +151,9 @@ clutter_behaviour_md2_animate_set_property (GObject      *gobject,
 
 static void
 clutter_behaviour_md2_animate_get_property (GObject    *gobject,
-					    guint       prop_id,
-					    GValue     *value,
-					    GParamSpec *pspec)
+                                            guint       prop_id,
+                                            GValue     *value,
+                                            GParamSpec *pspec)
 {
   ClutterBehaviourMD2AnimatePrivate *priv;
 
@@ -175,7 +175,7 @@ clutter_behaviour_md2_animate_get_property (GObject    *gobject,
 
 static void
 clutter_behaviour_md2_animate_class_init (ClutterBehaviourMD2AnimateClass
-					  *klass)
+                                          *klass)
 {
   GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
   ClutterBehaviourClass *behaviour_class = CLUTTER_BEHAVIOUR_CLASS (klass);
@@ -188,22 +188,22 @@ clutter_behaviour_md2_animate_class_init (ClutterBehaviourMD2AnimateClass
   g_object_class_install_property
     (gobject_class, PROP_FRAME_START,
      g_param_spec_int ("frame-start",
-		       "First frame",
-		       "First frame",
-		       0,
-		       G_MAXINT,
-		       0,
-		       G_PARAM_READABLE | G_PARAM_WRITABLE));
+                       "First frame",
+                       "First frame",
+                       0,
+                       G_MAXINT,
+                       0,
+                       G_PARAM_READABLE | G_PARAM_WRITABLE));
 
   g_object_class_install_property
     (gobject_class, PROP_FRAME_END,
      g_param_spec_int ("frame-end",
-		       "Last frame",
-		       "Last frame",
-		       0,
-		       G_MAXINT,
-		       0,
-		       G_PARAM_READABLE | G_PARAM_WRITABLE));
+                       "Last frame",
+                       "Last frame",
+                       0,
+                       G_MAXINT,
+                       0,
+                       G_PARAM_READABLE | G_PARAM_WRITABLE));
 
   g_type_class_add_private (klass, sizeof (ClutterBehaviourMD2AnimatePrivate));
 }
@@ -221,8 +221,8 @@ clutter_behaviour_md2_animate_init (ClutterBehaviourMD2Animate *animate)
 
 ClutterBehaviour *
 clutter_behaviour_md2_animate_new (ClutterAlpha *alpha,
-				   gint          frame_start,
-				   gint          frame_end)
+                                   gint          frame_start,
+                                   gint          frame_end)
 {
   g_return_val_if_fail (alpha == NULL || CLUTTER_IS_ALPHA (alpha), NULL);
 
@@ -235,8 +235,8 @@ clutter_behaviour_md2_animate_new (ClutterAlpha *alpha,
 
 void
 clutter_behaviour_md2_animate_get_bounds (ClutterBehaviourMD2Animate *animate,
-					  gint                     *frame_start,
-					  gint                     *frame_end)
+                                          gint                     *frame_start,
+                                          gint                     *frame_end)
 {
   ClutterBehaviourMD2AnimatePrivate *priv;
 
@@ -253,8 +253,8 @@ clutter_behaviour_md2_animate_get_bounds (ClutterBehaviourMD2Animate *animate,
 
 void
 clutter_behaviour_md2_animate_set_bounds (ClutterBehaviourMD2Animate *animate,
-					  gint                      frame_start,
-					  gint                      frame_end)
+                                          gint                      frame_start,
+                                          gint                      frame_end)
 {
   ClutterBehaviourMD2AnimatePrivate *priv;
 

@@ -33,19 +33,19 @@ G_BEGIN_DECLS
 #define CLUTTER_TYPE_MD2_DATA (clutter_md2_data_get_type ())
 #define CLUTTER_TYPE_MD2_DATA_EXTENTS (clutter_md2_data_extents_get_type ())
 
-#define CLUTTER_MD2_DATA(obj)					\
-  (G_TYPE_CHECK_INSTANCE_CAST ((obj), CLUTTER_TYPE_MD2_DATA,	\
-			       ClutterMD2Data))
-#define CLUTTER_MD2_DATA_CLASS(klass)				\
-  (G_TYPE_CHECK_CLASS_CAST ((klass), CLUTTER_TYPE_MD2_DATA,	\
-			    ClutterMD2DataClass))
-#define CLUTTER_IS_MD2_DATA(obj)				\
+#define CLUTTER_MD2_DATA(obj)                                   \
+  (G_TYPE_CHECK_INSTANCE_CAST ((obj), CLUTTER_TYPE_MD2_DATA,    \
+                               ClutterMD2Data))
+#define CLUTTER_MD2_DATA_CLASS(klass)                           \
+  (G_TYPE_CHECK_CLASS_CAST ((klass), CLUTTER_TYPE_MD2_DATA,     \
+                            ClutterMD2DataClass))
+#define CLUTTER_IS_MD2_DATA(obj)                                \
   (G_TYPE_CHECK_INSTANCE_TYPE ((obj), CLUTTER_TYPE_MD2_DATA))
-#define CLUTTER_IS_MD2_DATA_CLASS(klass)			\
+#define CLUTTER_IS_MD2_DATA_CLASS(klass)                        \
   (G_TYPE_CHECK_CLASS_TYPE ((klass), CLUTTER_TYPE_MD2_DATA))
-#define CLUTTER_MD2_DATA_GET_CLASS(obj)				\
-  (G_TYPE_INSTANCE_GET_CLASS ((obj), CLUTTER_TYPE_MD2_DATA,	\
-			      ClutterMD2DataClass))
+#define CLUTTER_MD2_DATA_GET_CLASS(obj)                         \
+  (G_TYPE_INSTANCE_GET_CLASS ((obj), CLUTTER_TYPE_MD2_DATA,     \
+                              ClutterMD2DataClass))
 
 typedef enum {
   CLUTTER_MD2_DATA_ERROR_INVALID_FILE,
@@ -88,33 +88,33 @@ GType clutter_md2_data_extents_get_type (void) G_GNUC_CONST;
 ClutterMD2Data *clutter_md2_data_new (void);
 
 gboolean clutter_md2_data_load (ClutterMD2Data   *md2,
-				const gchar      *filename,
-				GError          **error);
+                                const gchar      *filename,
+                                GError          **error);
 
 gboolean clutter_md2_data_add_skin (ClutterMD2Data  *md2,
-				    const gchar     *filename,
-				    GError         **error);
+                                    const gchar     *filename,
+                                    GError         **error);
 
 gint clutter_md2_data_get_n_skins (ClutterMD2Data *md2);
 
 gint clutter_md2_data_get_n_frames (ClutterMD2Data *md2);
 
 const gchar *clutter_md2_data_get_frame_name (ClutterMD2Data *md2,
-					      gint            frame_num);
+                                              gint            frame_num);
 
 void clutter_md2_data_render (ClutterMD2Data        *data,
-			      gint                   frame_num_a,
-			      gint                   frame_num_b,
-			      gfloat                 interval,
-			      gint                   skin_num,
-			      const ClutterGeometry *geom);
+                              gint                   frame_num_a,
+                              gint                   frame_num_b,
+                              gfloat                 interval,
+                              gint                   skin_num,
+                              const ClutterGeometry *geom);
 
 void clutter_md2_data_get_extents (ClutterMD2Data        *data,
-				   ClutterMD2DataExtents *extents);
+                                   ClutterMD2DataExtents *extents);
 
 void clutter_md2_data_get_frame_extents (ClutterMD2Data        *data,
-					 gint                   frame_num,
-					 ClutterMD2DataExtents *extents);
+                                         gint                   frame_num,
+                                         ClutterMD2DataExtents *extents);
 
 G_END_DECLS
 

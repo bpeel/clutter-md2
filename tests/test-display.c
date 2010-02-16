@@ -60,7 +60,7 @@ get_frame_list_start (const DisplayState *data)
 
 static gboolean
 on_frame_list_click (ClutterActor *frame_list, ClutterButtonEvent *event,
-		     DisplayState *data)
+                     DisplayState *data)
 {
   int n_frames = clutter_md2_get_n_frames (CLUTTER_MD2 (data->md2));
   int start = get_frame_list_start (data);
@@ -72,7 +72,7 @@ on_frame_list_click (ClutterActor *frame_list, ClutterButtonEvent *event,
   ClutterTimeline *tl = clutter_alpha_get_timeline (alpha);
 
   ypos = start + event->y;
-  
+
   if (ypos % (BUTTON_HEIGHT + BUTTON_GAP) >= BUTTON_HEIGHT)
     return FALSE;
 
@@ -88,9 +88,9 @@ on_frame_list_click (ClutterActor *frame_list, ClutterButtonEvent *event,
   else
     {
       if (frame_start == frame_end)
-	frame_start = frame_end = frame_num;
+        frame_start = frame_end = frame_num;
       else
-	frame_start = frame_num;
+        frame_start = frame_num;
     }
 
   clutter_behaviour_md2_animate_set_bounds (anim_md2, frame_start, frame_end);
@@ -100,7 +100,7 @@ on_frame_list_click (ClutterActor *frame_list, ClutterButtonEvent *event,
   else
     {
       clutter_timeline_set_n_frames (tl, 16 * (ABS (frame_start
-						    - frame_end) + 1));
+                                                    - frame_end) + 1));
       clutter_timeline_rewind (tl);
       clutter_timeline_start (tl);
     }
@@ -132,7 +132,7 @@ on_frame_list_paint (ClutterActor *actor, DisplayState *data)
     {
       PangoLayout *layout;
       const gchar *frame_name
-	= clutter_md2_get_frame_name (CLUTTER_MD2 (data->md2), frame_num);
+        = clutter_md2_get_frame_name (CLUTTER_MD2 (data->md2), frame_num);
       PangoRectangle extents;
 
       cogl_set_source_color4ub (bg_color.red, bg_color.blue, bg_color.blue,
@@ -161,7 +161,7 @@ on_frame_list_paint (ClutterActor *actor, DisplayState *data)
 
 static gboolean
 on_grabber_button_press (ClutterActor *actor, ClutterButtonEvent *event,
-			 DisplayState *data)
+                         DisplayState *data)
 {
   if (!data->is_grabbed)
     {
@@ -176,7 +176,7 @@ on_grabber_button_press (ClutterActor *actor, ClutterButtonEvent *event,
 
 static gboolean
 on_grabber_button_release (ClutterActor *actor, ClutterButtonEvent *event,
-			   DisplayState *data)
+                           DisplayState *data)
 {
   if (data->is_grabbed)
     {
@@ -189,16 +189,16 @@ on_grabber_button_release (ClutterActor *actor, ClutterButtonEvent *event,
 
 static gboolean
 on_grabber_motion (ClutterActor *actor, ClutterMotionEvent *event,
-		   DisplayState *data)
+                   DisplayState *data)
 {
   if (data->is_grabbed)
     {
       data->grabber_pos = event->y - data->grab_y;
 
       if (data->grabber_pos < 0)
-	data->grabber_pos = 0;
+        data->grabber_pos = 0;
       else if (data->grabber_pos > data->max_grabber_pos)
-	data->grabber_pos = data->max_grabber_pos;
+        data->grabber_pos = data->max_grabber_pos;
 
       clutter_actor_set_y (actor, data->grabber_pos);
 
@@ -220,7 +220,7 @@ on_key_press (ClutterActor *stage, ClutterKeyEvent *event, gpointer data)
 
 static gboolean
 on_angle_button (ClutterActor *button, ClutterButtonEvent *event,
-		 DisplayState *state)
+                 DisplayState *state)
 {
   int axis, angle;
   int md2_width = clutter_actor_get_width (state->md2);
@@ -229,20 +229,20 @@ on_angle_button (ClutterActor *button, ClutterButtonEvent *event,
   for (axis = 0; axis < 3; axis++)
     for (angle = 0; angle < ANGLE_LABEL_COUNT; angle++)
       if (state->angle_labels[axis * ANGLE_LABEL_COUNT + angle] == button)
-	{
-	  state->axis_angles[axis] = angle;
-	  clutter_actor_set_position (state->angle_markers[axis],
-				      (angle + 1) * ANGLE_CONTROL_WIDTH,
-				      axis * ANGLE_CONTROL_HEIGHT);
+        {
+          state->axis_angles[axis] = angle;
+          clutter_actor_set_position (state->angle_markers[axis],
+                                      (angle + 1) * ANGLE_CONTROL_WIDTH,
+                                      axis * ANGLE_CONTROL_HEIGHT);
 
-	  if (angle < ANGLE_LABEL_COUNT - 1)
-	    clutter_actor_set_rotation (state->md2,
-					CLUTTER_X_AXIS + axis,
-					angle * 90.0,
-					md2_width / 2, md2_height / 2, 0);
-	  
-	  return TRUE;
-	}
+          if (angle < ANGLE_LABEL_COUNT - 1)
+            clutter_actor_set_rotation (state->md2,
+                                        CLUTTER_X_AXIS + axis,
+                                        angle * 90.0,
+                                        md2_width / 2, md2_height / 2, 0);
+
+          return TRUE;
+        }
 
   return FALSE;
 }
@@ -260,10 +260,10 @@ make_angle_buttons (DisplayState *state)
   /* Make a blue background for the angle buttons */
   background = clutter_rectangle_new_with_color (&background_color);
   clutter_actor_set_size (background,
-			  ANGLE_CONTROL_WIDTH * (ANGLE_LABEL_COUNT + 1),
-			  ANGLE_CONTROL_HEIGHT * 3);
+                          ANGLE_CONTROL_WIDTH * (ANGLE_LABEL_COUNT + 1),
+                          ANGLE_CONTROL_HEIGHT * 3);
   clutter_container_add (CLUTTER_CONTAINER (group), background, NULL);
-  
+
   /* Make a button to the set angle of rotation for each axis */
   for (axis = 0; axis < 3; axis++)
     {
@@ -272,42 +272,43 @@ make_angle_buttons (DisplayState *state)
       int angle;
 
       label = clutter_text_new_with_text (ANGLE_FONT, axis_text);
-      clutter_text_set_line_alignment (CLUTTER_TEXT (label), PANGO_ALIGN_CENTER);
+      clutter_text_set_line_alignment (CLUTTER_TEXT (label),
+                                       PANGO_ALIGN_CENTER);
       clutter_actor_set_position (label, 0, axis * ANGLE_CONTROL_HEIGHT);
       clutter_actor_set_size (label, ANGLE_CONTROL_WIDTH, ANGLE_CONTROL_HEIGHT);
 
       state->angle_markers[axis]
-	= clutter_rectangle_new_with_color (&marker_color);
+        = clutter_rectangle_new_with_color (&marker_color);
       clutter_actor_set_position (state->angle_markers[axis],
-				  ANGLE_CONTROL_WIDTH,
-				  ANGLE_CONTROL_HEIGHT * axis);
+                                  ANGLE_CONTROL_WIDTH,
+                                  ANGLE_CONTROL_HEIGHT * axis);
       clutter_actor_set_size (state->angle_markers[axis],
-			      ANGLE_CONTROL_WIDTH,
-			      ANGLE_CONTROL_HEIGHT);
+                              ANGLE_CONTROL_WIDTH,
+                              ANGLE_CONTROL_HEIGHT);
 
       clutter_container_add (CLUTTER_CONTAINER (group),
-			     state->angle_markers[axis],
-			     label,
-			     NULL);
+                             state->angle_markers[axis],
+                             label,
+                             NULL);
 
       for (angle = 0; angle < ANGLE_LABEL_COUNT; angle++)
-	{
-	  label = clutter_text_new_with_text (ANGLE_FONT, angle_labels[angle]);
-	  clutter_text_set_line_alignment (CLUTTER_TEXT (label),
+        {
+          label = clutter_text_new_with_text (ANGLE_FONT, angle_labels[angle]);
+          clutter_text_set_line_alignment (CLUTTER_TEXT (label),
                                            PANGO_ALIGN_CENTER);
-	  clutter_actor_set_position (label, ANGLE_CONTROL_WIDTH * (angle + 1),
-				      ANGLE_CONTROL_HEIGHT * axis);
-	  clutter_actor_set_size (label, ANGLE_CONTROL_WIDTH,
-				  ANGLE_CONTROL_HEIGHT);
-	  clutter_container_add (CLUTTER_CONTAINER (group), label, NULL);
+          clutter_actor_set_position (label, ANGLE_CONTROL_WIDTH * (angle + 1),
+                                      ANGLE_CONTROL_HEIGHT * axis);
+          clutter_actor_set_size (label, ANGLE_CONTROL_WIDTH,
+                                  ANGLE_CONTROL_HEIGHT);
+          clutter_container_add (CLUTTER_CONTAINER (group), label, NULL);
 
-	  clutter_actor_set_reactive (label, TRUE);
+          clutter_actor_set_reactive (label, TRUE);
 
-	  g_signal_connect (label, "button-press-event",
-			    G_CALLBACK (on_angle_button), state);
+          g_signal_connect (label, "button-press-event",
+                            G_CALLBACK (on_angle_button), state);
 
-	  state->angle_labels[axis * ANGLE_LABEL_COUNT + angle] = label;
-	}
+          state->angle_labels[axis * ANGLE_LABEL_COUNT + angle] = label;
+        }
     }
 
   return group;
@@ -323,9 +324,9 @@ on_rotate_frame (ClutterTimeline *tl, gint frame_num, DisplayState *state)
   for (axis = 0; axis < 3; axis++)
     if (state->axis_angles[axis] == ANGLE_LABEL_COUNT - 1)
       clutter_actor_set_rotation (state->md2,
-				  CLUTTER_X_AXIS + axis,
-				  frame_num,
-				  md2_width / 2, md2_height / 2, 0);
+                                  CLUTTER_X_AXIS + axis,
+                                  frame_num,
+                                  md2_width / 2, md2_height / 2, 0);
 }
 
 int
@@ -358,9 +359,9 @@ main (int argc, char **argv)
 
   md2 = clutter_md2_new ();
   clutter_actor_set_size (md2, clutter_actor_get_width (stage)
-			  - GRABBER_WIDTH - BUTTON_WIDTH - BUTTON_GAP * 2,
-			  clutter_actor_get_height (stage)
-			  - ANGLE_CONTROL_HEIGHT * 3);
+                          - GRABBER_WIDTH - BUTTON_WIDTH - BUTTON_GAP * 2,
+                          clutter_actor_get_height (stage)
+                          - ANGLE_CONTROL_HEIGHT * 3);
 
   data = clutter_md2_data_new ();
 
@@ -374,9 +375,9 @@ main (int argc, char **argv)
   for (i = 2; i < argc; i++)
     if (!clutter_md2_data_add_skin (data, argv[i], &error))
       {
-	fprintf (stderr, "%s\n", error->message);
-	g_error_free (error);
-	error = NULL;
+        fprintf (stderr, "%s\n", error->message);
+        g_error_free (error);
+        error = NULL;
       }
 
   clutter_md2_set_data (CLUTTER_MD2 (md2), data);
@@ -400,44 +401,44 @@ main (int argc, char **argv)
 
   state.frame_display = clutter_rectangle_new_with_color (&transparent);
   clutter_actor_set_position (state.frame_display,
-			      clutter_actor_get_width (stage) - GRABBER_WIDTH
-			      - BUTTON_GAP - BUTTON_WIDTH, 0);
+                              clutter_actor_get_width (stage) - GRABBER_WIDTH
+                              - BUTTON_GAP - BUTTON_WIDTH, 0);
   clutter_actor_set_size (state.frame_display, BUTTON_WIDTH,
-			  clutter_actor_get_height (stage));
+                          clutter_actor_get_height (stage));
   clutter_actor_set_reactive (state.frame_display, TRUE);
-  
+
   g_signal_connect (state.frame_display, "button-press-event",
-		    G_CALLBACK (on_frame_list_click), &state);
+                    G_CALLBACK (on_frame_list_click), &state);
   g_signal_connect (state.frame_display, "paint",
-		    G_CALLBACK (on_frame_list_paint), &state);
+                    G_CALLBACK (on_frame_list_paint), &state);
 
   grabber = clutter_rectangle_new_with_color (&bg_color);
   clutter_actor_set_size (grabber, GRABBER_WIDTH, GRABBER_HEIGHT);
   clutter_actor_set_position (grabber, clutter_actor_get_width (stage)
-			      - GRABBER_WIDTH, 0);
+                              - GRABBER_WIDTH, 0);
   clutter_actor_set_reactive (grabber, TRUE);
 
   clutter_container_add (CLUTTER_CONTAINER (stage),
-			 state.frame_display, grabber, NULL);
+                         state.frame_display, grabber, NULL);
 
   state.stage = stage;
   state.is_grabbed = FALSE;
   state.grabber_pos = 0;
   state.max_grabber_pos = clutter_actor_get_height (stage) - GRABBER_HEIGHT;
 
-  g_signal_connect (G_OBJECT (grabber), "button-press-event", 
-		    G_CALLBACK (on_grabber_button_press), &state);
+  g_signal_connect (G_OBJECT (grabber), "button-press-event",
+                    G_CALLBACK (on_grabber_button_press), &state);
   g_signal_connect (G_OBJECT (grabber), "button-release-event",
-		    G_CALLBACK (on_grabber_button_release), &state);
+                    G_CALLBACK (on_grabber_button_release), &state);
   g_signal_connect (G_OBJECT (grabber), "motion-event",
-		    G_CALLBACK (on_grabber_motion), &state);
+                    G_CALLBACK (on_grabber_motion), &state);
   g_signal_connect (G_OBJECT (stage), "key-press-event",
-		    G_CALLBACK (on_key_press), NULL);
+                    G_CALLBACK (on_key_press), NULL);
 
   angle_buttons = make_angle_buttons (&state);
   clutter_actor_set_position (angle_buttons, 0,
-			      clutter_actor_get_height (stage)
-			      - clutter_actor_get_height (angle_buttons));
+                              clutter_actor_get_height (stage)
+                              - clutter_actor_get_height (angle_buttons));
   clutter_container_add (CLUTTER_CONTAINER (stage), angle_buttons, NULL);
 
   font_map = cogl_pango_font_map_new ();

@@ -34,15 +34,15 @@ G_BEGIN_DECLS
 
 #define CLUTTER_TYPE_MD2 (clutter_md2_get_type ())
 
-#define CLUTTER_MD2(obj)						\
+#define CLUTTER_MD2(obj)                                                \
   (G_TYPE_CHECK_INSTANCE_CAST ((obj), CLUTTER_TYPE_MD2, ClutterMD2))
-#define CLUTTER_MD2_CLASS(klass)					\
+#define CLUTTER_MD2_CLASS(klass)                                        \
   (G_TYPE_CHECK_CLASS_CAST ((klass), CLUTTER_TYPE_MD2, ClutterMD2Class))
-#define CLUTTER_IS_MD2(obj)					        \
+#define CLUTTER_IS_MD2(obj)                                             \
   (G_TYPE_CHECK_INSTANCE_TYPE ((obj), CLUTTER_TYPE_MD2))
-#define CLUTTER_IS_MD2_CLASS(klass)			                \
+#define CLUTTER_IS_MD2_CLASS(klass)                                     \
   (G_TYPE_CHECK_CLASS_TYPE ((klass), CLUTTER_TYPE_MD2))
-#define CLUTTER_MD2_GET_CLASS(obj)					\
+#define CLUTTER_MD2_GET_CLASS(obj)                                      \
   (G_TYPE_INSTANCE_GET_CLASS ((obj), CLUTTER_TYPE_MD2, ClutterMD2Class))
 
 typedef struct _ClutterMD2 ClutterMD2;
@@ -76,13 +76,13 @@ gint clutter_md2_get_n_frames (ClutterMD2 *md2);
 gint clutter_md2_get_current_frame (ClutterMD2 *md2);
 void clutter_md2_set_current_frame (ClutterMD2 *md2, gint frame_num);
 void clutter_md2_set_current_frame_by_name (ClutterMD2 *md2,
-					    const gchar *frame_name);
+                                            const gchar *frame_name);
 void clutter_md2_get_sub_frame (ClutterMD2 *md2,
-				gint *frame_a, gint *frame_b,
-				gfloat *interval);
+                                gint *frame_a, gint *frame_b,
+                                gfloat *interval);
 void clutter_md2_set_sub_frame (ClutterMD2 *md2,
-				gint frame_a, gint frame_b,
-				gfloat interval);
+                                gint frame_a, gint frame_b,
+                                gfloat interval);
 const gchar *clutter_md2_get_frame_name (ClutterMD2 *md2, gint frame_num);
 
 G_END_DECLS

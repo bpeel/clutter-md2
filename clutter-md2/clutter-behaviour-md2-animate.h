@@ -30,21 +30,21 @@
 
 G_BEGIN_DECLS
 
-#define CLUTTER_TYPE_BEHAVIOUR_MD2_ANIMATE	\
+#define CLUTTER_TYPE_BEHAVIOUR_MD2_ANIMATE      \
   (clutter_behaviour_md2_animate_get_type ())
-#define CLUTTER_BEHAVIOUR_MD2_ANIMATE(obj)				\
+#define CLUTTER_BEHAVIOUR_MD2_ANIMATE(obj)                              \
   (G_TYPE_CHECK_INSTANCE_CAST ((obj), CLUTTER_TYPE_BEHAVIOUR_MD2_ANIMATE, \
-			       ClutterBehaviourMD2Animate))
-#define CLUTTER_IS_BEHAVIOUR_MD2_ANIMATE(obj)				\
+                               ClutterBehaviourMD2Animate))
+#define CLUTTER_IS_BEHAVIOUR_MD2_ANIMATE(obj)                           \
   (G_TYPE_CHECK_INSTANCE_TYPE ((obj), CLUTTER_TYPE_BEHAVIOUR_MD2_ANIMATE))
-#define CLUTTER_BEHAVIOUR_MD2_ANIMATE_CLASS(klass)			\
+#define CLUTTER_BEHAVIOUR_MD2_ANIMATE_CLASS(klass)                      \
   (G_TYPE_CHECK_CLASS_CAST ((klass), CLUTTER_TYPE_BEHAVIOUR_MD2_ANIMATE, \
-			    ClutterBehaviourMD2AnimateClass))
-#define CLUTTER_IS_BEHAVIOUR_MD2_ANIMATE_CLASS(klass)			\
+                            ClutterBehaviourMD2AnimateClass))
+#define CLUTTER_IS_BEHAVIOUR_MD2_ANIMATE_CLASS(klass)                   \
   (G_TYPE_CHECK_CLASS_TYPE ((klass), CLUTTER_TYPE_BEHAVIOUR_MD2_ANIMATE))
-#define CLUTTER_BEHAVIOUR_MD2_ANIMATE_GET_CLASS(obj)			\
+#define CLUTTER_BEHAVIOUR_MD2_ANIMATE_GET_CLASS(obj)                    \
   (G_TYPE_INSTANCE_GET_CLASS ((klass), CLUTTER_TYPE_BEHAVIOUR_MD2_ANIMATE, \
-			      ClutterBehaviourMD2AnimateClass))
+                              ClutterBehaviourMD2AnimateClass))
 
 typedef struct _ClutterBehaviourMD2Animate ClutterBehaviourMD2Animate;
 typedef struct _ClutterBehaviourMD2AnimatePrivate
@@ -66,8 +66,8 @@ struct _ClutterBehaviourMD2AnimateClass
 GType clutter_behaviour_md2_animate_get_type (void) G_GNUC_CONST;
 
 ClutterBehaviour *clutter_behaviour_md2_animate_new (ClutterAlpha *alpha,
-						     gint          frame_start,
-						     gint          frame_end);
+                                                     gint          frame_start,
+                                                     gint          frame_end);
 
 void clutter_behaviour_md2_animate_get_bounds
 (ClutterBehaviourMD2Animate *md2_animate,
