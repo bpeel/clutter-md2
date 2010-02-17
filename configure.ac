@@ -54,6 +54,8 @@ CLUTTER_MD2_LT_LDFLAGS="-version-info $CLUTTER_MD2_LT_VERSION"
 AC_SUBST(CLUTTER_MD2_LT_VERSION)
 AC_SUBST(CLUTTER_MD2_LT_LDFLAGS)
 
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
+
 dnl ========================================================================
 
 # Checks for programs.
