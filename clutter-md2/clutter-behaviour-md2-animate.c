@@ -28,6 +28,7 @@
 #endif
 
 #include <clutter/clutter.h>
+#include <math.h>
 
 #include "clutter-md2.h"
 #include "clutter-behaviour-md2-animate.h"
@@ -93,7 +94,9 @@ clutter_behaviour_md2_animate_alpha_notify (ClutterBehaviour *behaviour,
     }
   else
     {
-      gint frame_start, frame_end, alpha_multiple;
+      gfloat frac_frame;
+      gint frame_start, frame_end;
+      float int_part;
 
       frame_start = priv->frame_start;
       frame_end = priv->frame_end;
@@ -106,16 +109,16 @@ clutter_behaviour_md2_animate_alpha_notify (ClutterBehaviour *behaviour,
           alpha_value = 1 - alpha_value;
         }
 
-      alpha_multiple = alpha_value * (frame_end - frame_start);
+      frac_frame = alpha_value * (frame_end - frame_start);
 
-      data.frame_a = alpha_multiple + frame_start;
+      data.frame_a = frac_frame + frame_start;
 
       if (data.frame_a == priv->frame_end)
         data.frame_b = data.frame_a;
       else
         data.frame_b = data.frame_a + 1;
 
-      data.interval = alpha_multiple;
+      data.interval = modff (frac_frame, &int_part);
     }
 
   clutter_behaviour_actors_foreach (behaviour,
